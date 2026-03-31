@@ -1,9 +1,11 @@
+# Torch-based world model for RWM-Q planning.
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 
 class WorldModel(nn.Module):
+    """Predicts the next state delta and reward from a state-action pair."""
     def __init__(self, state_dim, action_dim, device="cpu"):
         super().__init__()
 
@@ -23,10 +25,13 @@ class WorldModel(nn.Module):
         self.loss_fn = nn.MSELoss()
 
     def forward(self, s, a):
+        """Concatenate state and action inputs and forward through the network."""
         x = torch.cat([s, a], dim=-1)
         return self.net(x)
 
     def predict(self, s, a):
+        """Evaluate the model without gradients and return predicted outputs."""
+
         self.eval()
 
         s = torch.tensor(s / 10.0, dtype=torch.float32).to(self.device).unsqueeze(0)

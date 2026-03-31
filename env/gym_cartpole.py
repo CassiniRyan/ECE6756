@@ -1,3 +1,4 @@
+# Environment factory for CartPole using Gymnasium.
 import gymnasium as gym
 
 def make_env(render=False):

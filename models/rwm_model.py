@@ -13,7 +13,6 @@ class RWMModel:
         delta = s_next - s
         self.buffer.append((s, a, delta, r))
 
-        # 🔥 train with batch
         if len(self.buffer) > 500:
             for _ in range(5):
                 batch = random.sample(self.buffer, 64)

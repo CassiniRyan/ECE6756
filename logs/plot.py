@@ -1,3 +1,4 @@
+# Plotting helper for comparing saved training reward logs.
 import json
 import matplotlib.pyplot as plt
 import numpy as np

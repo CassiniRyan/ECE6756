@@ -1,9 +1,11 @@
+# Simple neural world model for predicting state deltas and reward.
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 
 class SimpleWorldModel(nn.Module):
+    """Neural network that learns to predict environment transitions and reward."""
     def __init__(self, state_dim, action_dim):
         super().__init__()
 
@@ -20,14 +22,12 @@ class SimpleWorldModel(nn.Module):
         self.loss_fn = nn.MSELoss()
 
     def forward(self, s, a):
+        """Concatenate state and action tensors, then run the network."""
         x = torch.cat([s, a], dim=-1)
         return self.net(x)
 
     def predict(self, s, a):
-        """
-        Pure prediction - NO side effects, NO training
-        Returns (delta_state, reward)
-        """
+        """Run the model in evaluation mode and return predicted delta and reward."""
         self.eval()
 
         s = torch.tensor(s / 10.0, dtype=torch.float32).unsqueeze(0)

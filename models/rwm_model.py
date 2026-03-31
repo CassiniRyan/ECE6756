@@ -1,3 +1,4 @@
+# Reactive world model wrapper that stores real transitions and generates synthetic samples.
 import random
 import numpy as np
 

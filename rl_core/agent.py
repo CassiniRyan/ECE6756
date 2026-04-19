@@ -7,10 +7,10 @@ import random
 class Agent:
     """Agent wrapper for training, saving, loading, and policy evaluation."""
 
-    def __init__(self, env, model=None, planning_steps=0):
+    def __init__(self, env, model=None, planning_steps=0, bins_per_dim=10):
         self.env = env
-        self.disc = Discretizer()
-        self.q = QLearning(env.action_space.n)
+        self.disc = Discretizer(bins_per_dim=bins_per_dim)
+        self.q = QLearning(env.action_space.n, bins_per_dim=bins_per_dim)
         self.model = model
         self.planning_steps = planning_steps
         self.global_step = 0  # Total number of environment steps taken.
@@ -48,8 +48,15 @@ class Agent:
                 self.q.update(s, a, r, s_next)
 
                 # Store the real transition in the model if available.
+                # For models that expect continuous observations (e.g. LinearModel)
+                # pass the raw env observations; otherwise pass the discrete state.
                 if self.model is not None:
-                    self.model.store(s, a, s_next, r)
+                    try:
+                        # prefer storing raw observations when possible
+                        self.model.store(obs, a, obs_next, r)
+                    except Exception:
+                        # fallback to storing discretized states for tabular models
+                        self.model.store(s, a, s_next, r)
 
                 # Optionally perform additional model-based planning updates.
                 ratio = self.model_ratio(self.global_step)
@@ -59,7 +66,16 @@ class Agent:
                         for _ in range(model_updates):
                             try:
                                 s_m, a_m, s_next_m, r_m = self.model.sample()
-                                self.q.update(s_m, a_m, r_m, s_next_m)
+
+                                # If the model returns continuous observations (floats),
+                                # discretize them before updating the tabular Q-table.
+                                if (not isinstance(s_m, tuple)) or (not all(isinstance(x, int) for x in s_m)):
+                                    s_m_d = self.disc.discretize(s_m)
+                                    s_next_m_d = self.disc.discretize(s_next_m)
+                                else:
+                                    s_m_d, s_next_m_d = s_m, s_next_m
+
+                                self.q.update(s_m_d, a_m, r_m, s_next_m_d)
                             except Exception:
                                 # Ignore sampling failures if the model is not ready.
                                 pass

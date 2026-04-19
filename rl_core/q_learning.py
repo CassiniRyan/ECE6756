@@ -4,9 +4,9 @@ import numpy as np
 class QLearning:
     """Tabular Q-learning implementation for discretized CartPole states."""
 
-    def __init__(self, action_space):
+    def __init__(self, action_space, bins_per_dim=10):
         # Q-table shape: [position, velocity, angle, angular_velocity, action]
-        self.Q = np.zeros((10, 10, 10, 10, action_space))
+        self.Q = np.zeros((bins_per_dim, bins_per_dim, bins_per_dim, bins_per_dim, action_space))
         self.alpha = 0.1
         self.gamma = 0.99
         self.epsilon = 1.0

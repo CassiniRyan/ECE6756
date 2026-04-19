@@ -10,7 +10,11 @@ def parse_args():
     """Parse command line options for mode, algorithm, episodes, and rendering."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["train", "run"], required=True)
-    parser.add_argument("--algo", choices=["q", "dyna-q", "rwm-q"], default="q")
+    parser.add_argument(
+        "--algo",
+        choices=["q", "dyna-q", "dyna-q-discret", "dyna-q-linear", "rwm-q"],
+        default="q",
+    )
     parser.add_argument("--episodes", type=int, default=5000)
     parser.add_argument("--render", action="store_true")
     return parser.parse_args()
@@ -22,13 +26,23 @@ def main():
     env = make_env(render=args.render)
 
     # Select the algorithm and any planning model.
+    algo_name = "dyna-q-discret" if args.algo == "dyna-q" else args.algo
+    bins_per_dim = 10
+
     if args.algo == "q":
         model = None
         planning_steps = 0
 
-    elif args.algo == "dyna-q":
+    elif algo_name == "dyna-q-discret":
         from models.tabular_model import TabularModel
-        model = TabularModel()
+        model = TabularModel(max_per_state=8)
+        planning_steps = 1
+        bins_per_dim = 20
+
+    elif algo_name == "dyna-q-linear":
+        from models.linear_model import LinearModel
+        bins_per_dim = 16
+        model = LinearModel(action_space=env.action_space.n, max_state_index=bins_per_dim - 1)
         planning_steps = 1
 
     elif args.algo == "rwm-q":
@@ -43,7 +57,7 @@ def main():
         model = RWMModel(wm)
         planning_steps = 1
 
-    agent = Agent(env, model=model, planning_steps=planning_steps)
+    agent = Agent(env, model=model, planning_steps=planning_steps, bins_per_dim=bins_per_dim)
 
     if args.mode == "train":
         # Train the agent for the requested number of episodes.
@@ -59,11 +73,11 @@ def main():
             plt.plot(rewards)
             plt.xlabel("Episode")
             plt.ylabel("Reward")
-            plt.title(f"Training Curve ({args.algo})")
+            plt.title(f"Training Curve ({algo_name})")
             plt.grid()
 
-            plt.savefig(f"{args.algo}_debug.png")  # safe on server
-            print(f"Saved plot → {args.algo}_debug.png")
+            plt.savefig(f"{algo_name}_debug.png")  # safe on server
+            print(f"Saved plot -> {algo_name}_debug.png")
 
             agent.save("q_table.npy")
 ####################################################
@@ -71,15 +85,15 @@ def main():
             os.makedirs("logs", exist_ok=True)
 
             log_data = {
-                "algo": args.algo,
+                "algo": algo_name,
                 "episodes": args.episodes,
                 "rewards": rewards
             }
 
-            with open(f"logs/{args.algo}.json", "w") as f:
+            with open(f"logs/{algo_name}.json", "w") as f:
                 json.dump(log_data, f)
 
-            agent.save(f"logs/q_table_{args.algo}.npy")
+            agent.save(f"logs/q_table_{algo_name}.npy")
 
         agent.save("q_table.npy")
 

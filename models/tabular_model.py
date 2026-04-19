@@ -4,12 +4,12 @@ from collections import defaultdict
 
 class TabularModel:
     """Simple memory-based model of environment transitions."""
-    def __init__(self):
+    def __init__(self, max_per_state=8):
         # (s, a) -> list of (s_next, r)
         self.memory = defaultdict(list)
 
         # max transitions per (s,a)
-        self.max_per_state = 3
+        self.max_per_state = max_per_state
 
     def store(self, s, a, s_next, r):
         """Store a transition for a discrete state-action pair."""

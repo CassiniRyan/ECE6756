@@ -6,7 +6,9 @@ pip install gymnasium numpy
 
 ## Train
 python main.py --mode train --algo q
-python main.py --mode train --algo dyna-q
+python main.py --mode train --algo dyna-q-discret
+python main.py --mode train --algo dyna-q-linear
+python main.py --mode train --algo rwm-q
 
 ## Run
 python main.py --mode run --algo q

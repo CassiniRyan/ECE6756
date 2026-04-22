@@ -434,6 +434,9 @@ class RWMModel:
             # Never freeze by patience — only max_train_ratio stops training.
             if self.no_improve_count % 10 == 0:
                 self.model.load_exported_state(self.best_model.export_state())
+                # Reset Adam momentum/variance so stale optimiser state from the
+                # degraded run doesn't immediately corrupt the restored weights.
+                self.model.reset_optimizers()
                 self._log(
                     "ROLLBACK",
                     reason="score_degraded",

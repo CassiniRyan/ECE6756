@@ -316,19 +316,25 @@ class RWMModel:
             "best_delta_mae": None if self.best_diag is None else self.best_diag["delta_mae"],
             "best_delta_disagreement": None if self.best_diag is None else self.best_diag["delta_disagreement"],
         }
-        # Log distribution shift: compare mean state of oldest vs newest quarter.
+        # Log distribution shift: compare std of oldest vs newest quarter.
+        # CartPole is zero-mean by symmetry so mean shift is always ~0 — std shift
+        # is the real signal (policy improvement narrows the variance of theta/omega).
         n = len(self.buffer)
         if n >= 64:
             q = n // 4
             old_states = np.array([self.buffer[i][0] for i in range(q)])
             new_states = np.array([self.buffer[i][0] for i in range(n - q, n)])
-            shift = np.abs(new_states.mean(axis=0) - old_states.mean(axis=0))
+            old_std = old_states.std(axis=0)
+            new_std = new_states.std(axis=0)
+            std_ratio = new_std / (old_std + 1e-8)
             self._log(
                 "DIST_SHIFT",
-                x_shift=f"{shift[0]:.4f}",
-                v_shift=f"{shift[1]:.4f}",
-                th_shift=f"{shift[2]:.4f}",
-                om_shift=f"{shift[3]:.4f}",
+                x_ratio=f"{std_ratio[0]:.3f}",
+                v_ratio=f"{std_ratio[1]:.3f}",
+                th_ratio=f"{std_ratio[2]:.3f}",
+                om_ratio=f"{std_ratio[3]:.3f}",
+                old_th_std=f"{old_std[2]:.4f}",
+                new_th_std=f"{new_std[2]:.4f}",
                 buf=n,
             )
 
@@ -410,15 +416,22 @@ class RWMModel:
             )
         else:
             self.no_improve_count += 1
-            was_frozen = self.training_frozen
-            if self.no_improve_count >= self.freeze_patience:
-                self.training_frozen = True
-            if self.training_frozen and not was_frozen:
+            self._log(
+                "NO_IMPROVE",
+                count=self.no_improve_count,
+                best_score=f"{self.best_score:.5f}",
+                current_score=f"{score:.5f}",
+                train_steps=self.training_steps,
+            )
+            # When the model has drifted away from its best, roll its weights back
+            # to the best snapshot and let it re-adapt to the current buffer.
+            # Never freeze by patience — only max_train_ratio stops training.
+            if self.no_improve_count % 10 == 0:
+                self.model.load_exported_state(self.best_model.export_state())
                 self._log(
-                    "FREEZE",
-                    reason="patience_exhausted",
+                    "ROLLBACK",
+                    reason="score_degraded",
                     no_improve_count=self.no_improve_count,
-                    freeze_patience=self.freeze_patience,
                     best_score=f"{self.best_score:.5f}",
                     current_score=f"{score:.5f}",
                     train_steps=self.training_steps,

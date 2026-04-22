@@ -9,6 +9,7 @@ class SimpleWorldModel(nn.Module):
     def __init__(self, state_dim, action_dim):
         super().__init__()
 
+        # Smaller reference network kept for simpler experiments.
         self.net = nn.Sequential(
             nn.Linear(state_dim + action_dim, 64),
             nn.ReLU(),
@@ -17,7 +18,7 @@ class SimpleWorldModel(nn.Module):
             nn.Linear(64, state_dim + 1)
         )
 
-        # 🔥 lower LR = more stable
+        # A slightly smaller learning rate helps the online fit stay stable.
         self.optimizer = optim.Adam(self.parameters(), lr=5e-4)
         self.loss_fn = nn.MSELoss()
 
@@ -30,6 +31,7 @@ class SimpleWorldModel(nn.Module):
         """Run the model in evaluation mode and return predicted delta and reward."""
         self.eval()
 
+        # Match the simple normalization used during training.
         s = torch.tensor(s / 10.0, dtype=torch.float32).unsqueeze(0)
         a = torch.tensor([a], dtype=torch.float32).unsqueeze(0)
 
@@ -44,7 +46,7 @@ class SimpleWorldModel(nn.Module):
         return delta, r
 
     def train_step(self, s, a, delta, r):
-        """Single step training"""
+        """Train on a single transition."""
         self.train()
 
         s = torch.tensor(s / 10.0, dtype=torch.float32)
@@ -65,7 +67,7 @@ class SimpleWorldModel(nn.Module):
         return loss.item()
 
     def train_batch(self, batch_data):
-        """Batch training"""
+        """Train on a batch of transitions."""
         self.train()
         
         s_b, a_b, delta_b, r_b = batch_data

@@ -20,10 +20,12 @@ class QLearning:
             return np.random.randint(action_space)
         return int(np.argmax(self.Q[s]))
 
-    def update(self, s, a, r, s_next):
+    def update(self, s, a, r, s_next, done=False):
         """Update a single Q-value using the TD(0) rule."""
+        # Terminal transitions should not bootstrap from future value estimates.
+        target = r if done else r + self.gamma * np.max(self.Q[s_next])
         self.Q[s][a] += self.alpha * (
-            r + self.gamma * np.max(self.Q[s_next]) - self.Q[s][a]
+            target - self.Q[s][a]
         )
 
     def decay(self):

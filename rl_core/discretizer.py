@@ -16,4 +16,5 @@ class Discretizer:
 
     def discretize(self, obs):
         """Map each continuous observation value into a discrete bin index."""
+        # The tuple of bin indices becomes the state key used by tabular methods.
         return tuple(np.digitize(o, b) for o, b in zip(obs, self.bins))

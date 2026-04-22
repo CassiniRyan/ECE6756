@@ -25,7 +25,7 @@ def main():
     # Create the environment once and pass it to the agent.
     env = make_env(render=args.render)
 
-    # Select the algorithm and any planning model.
+    # Normalize the alias so "dyna-q" maps to the discrete/tabular variant.
     algo_name = "dyna-q-discret" if args.algo == "dyna-q" else args.algo
     bins_per_dim = 10
 
@@ -35,15 +35,18 @@ def main():
 
     elif algo_name == "dyna-q-discret":
         from models.tabular_model import TabularModel
+        # Classic Dyna-Q: memorize discrete transitions and replay them for planning.
         model = TabularModel(max_per_state=8)
         planning_steps = 1
         bins_per_dim = 20
 
     elif algo_name == "dyna-q-linear":
         from models.linear_model import LinearModel
-        bins_per_dim = 16
-        model = LinearModel(action_space=env.action_space.n, max_state_index=bins_per_dim - 1)
-        planning_steps = 1
+        # Continuous linear model: fit one-step dynamics in observation space,
+        # then discretize the imagined transitions before Q-updates.
+        bins_per_dim = 12
+        model = LinearModel(action_space=env.action_space.n)
+        planning_steps = 6
 
     elif args.algo == "rwm-q":
         from models.rwm_model import RWMModel
@@ -53,7 +56,8 @@ def main():
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        wm = WorldModel(state_dim=4, action_dim=1, device=device)
+        # Neural world model used by the reactive world-model planner.
+        wm = WorldModel(state_dim=4, action_dim=1, num_actions=env.action_space.n, device=device)
         model = RWMModel(wm)
         planning_steps = 1
 
@@ -70,6 +74,7 @@ def main():
 ##################################################
             import matplotlib.pyplot as plt
 
+            # Save a quick visual summary after each training run.
             plt.plot(rewards)
             plt.xlabel("Episode")
             plt.ylabel("Reward")
@@ -90,6 +95,7 @@ def main():
                 "rewards": rewards
             }
 
+            # Persist logs and weights so later plots do not need retraining.
             with open(f"logs/{algo_name}.json", "w") as f:
                 json.dump(log_data, f)
 

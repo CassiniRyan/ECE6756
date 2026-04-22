@@ -21,7 +21,7 @@ class TabularModel:
 
     def sample(self):
         """Sample an experience tuple from the stored transition memory."""
-        # filter keys with enough data
+        # Sample from previously observed transitions rather than predicting.
         valid_keys = [k for k in self.memory.keys() if len(self.memory[k]) > 0]
 
         if not valid_keys:
@@ -31,6 +31,10 @@ class TabularModel:
         s_next, r = random.choice(self.memory[(s, a)])
 
         return s, a, s_next, r
+
+    def planning_ratio(self, step):
+        """Classic tabular Dyna can use planning immediately once samples exist."""
+        return 1.0
     
     def ready(self):
         """Return True when the model has enough stored transitions to sample from."""

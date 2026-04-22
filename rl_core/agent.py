@@ -111,6 +111,7 @@ class Agent:
                                 f"next_state_mae={diag['next_state_mae']:.4f} "
                                 f"reward_mae={diag['reward_mae']:.4f} "
                                 f"delta_disagreement={diag['delta_disagreement']:.4f} "
+                                f"velocity_disagreement={diag.get('velocity_disagreement', float('nan')):.4f} "
                                 f"reward_disagreement={diag['reward_disagreement']:.4f} "
                                 f"best_delta_mae={diag['best_delta_mae'] if diag['best_delta_mae'] is not None else 'None'} "
                                 f"best_delta_disagreement={diag['best_delta_disagreement'] if diag['best_delta_disagreement'] is not None else 'None'}"

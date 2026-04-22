@@ -16,7 +16,8 @@ class _DynamicsMember(nn.Module):
         # Wider velocity scales avoid crushing the two hard-to-model dimensions.
         self.state_scale = torch.tensor([4.8, 10.0, 0.418, 10.0], dtype=torch.float32, device=device)
         self.delta_scale = torch.tensor([0.25, 0.50, 0.10, 0.80], dtype=torch.float32, device=device)
-        self.delta_loss_weights = torch.tensor([1.5, 2.0, 1.5, 2.0], dtype=torch.float32, device=device)
+        # Velocity dims (1, 3) get 3.5x weight: they have no kinematic prior and compound fastest.
+        self.delta_loss_weights = torch.tensor([1.0, 3.5, 1.0, 3.5], dtype=torch.float32, device=device)
 
         self.net = nn.Sequential(
             nn.Linear(state_dim + num_actions, 128),
@@ -85,6 +86,7 @@ class _DynamicsMember(nn.Module):
 
         self.optimizer.zero_grad()
         loss.backward()
+        nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
         self.optimizer.step()
         return float(loss.item())
 
@@ -130,6 +132,16 @@ class WorldModel:
         delta_disagreement = float(np.mean(np.std(deltas, axis=0)))
         reward_disagreement = float(np.std(rewards))
         return delta_mean, reward_mean, delta_disagreement, reward_disagreement
+
+    def predict_with_uncertainty_by_dim(self, s, a):
+        """Like predict_with_uncertainty but also returns per-dimension std for targeted filtering."""
+        deltas, rewards = self.predict_all(s, a)
+        delta_mean = np.mean(deltas, axis=0)
+        reward_mean = float(np.mean(rewards))
+        delta_std_by_dim = np.std(deltas, axis=0)
+        delta_disagreement = float(np.mean(delta_std_by_dim))
+        reward_disagreement = float(np.std(rewards))
+        return delta_mean, reward_mean, delta_disagreement, reward_disagreement, delta_std_by_dim
 
     def predict(self, s, a):
         """Compatibility helper returning the ensemble-mean prediction only."""

@@ -23,8 +23,10 @@ class RWMModel:
         ready_delta_mae=0.36,
         ready_velocity_mae=0.60,
         ready_disagreement=0.04,
+        ready_velocity_disagreement=0.03,
         train_every=8,
-        freeze_patience=8,
+        # diagnostics() is called every ~1000 steps; 30 means ~30k steps before freeze.
+        freeze_patience=30,
         max_train_ratio=0.90,
     ):
         self.model = model
@@ -43,6 +45,7 @@ class RWMModel:
         self.ready_delta_mae = float(ready_delta_mae)
         self.ready_velocity_mae = float(ready_velocity_mae)
         self.ready_disagreement = float(ready_disagreement)
+        self.ready_velocity_disagreement = float(ready_velocity_disagreement)
         self.train_every = int(train_every)
         self.freeze_patience = int(freeze_patience)
         self.max_train_ratio = float(max_train_ratio)
@@ -135,8 +138,15 @@ class RWMModel:
         for _ in range(10):
             s, _, _, _, _ = random.choice(self.buffer)
             a = np.random.randint(0, self.model.num_actions)
-            delta_pred, r_pred, delta_disagreement, reward_disagreement = self.best_model.predict_with_uncertainty(s, a)
-            if delta_disagreement <= self.ready_disagreement:
+            delta_pred, r_pred, delta_disagreement, reward_disagreement, delta_std_by_dim = (
+                self.best_model.predict_with_uncertainty_by_dim(s, a)
+            )
+            # Reject if mean disagreement OR either velocity dimension is too uncertain.
+            velocity_disagreement = max(float(delta_std_by_dim[1]), float(delta_std_by_dim[3]))
+            if (
+                delta_disagreement <= self.ready_disagreement
+                and velocity_disagreement <= self.ready_velocity_disagreement
+            ):
                 delta_pred = self._clip_sample_delta(delta_pred)
                 s_next = self._clip_sample_obs(np.array(s) + np.array(delta_pred, dtype=np.float32))
                 r_pred = float(np.clip(r_pred, 0.0, 1.0))
@@ -174,8 +184,11 @@ class RWMModel:
         disagreements = []
         reward_disagreements = []
 
+        velocity_disagreements = []
         for s, a, delta_true, r_true, _ in batch:
-            delta_pred, r_pred, delta_disagreement, reward_disagreement = self.model.predict_with_uncertainty(s, a)
+            delta_pred, r_pred, delta_disagreement, reward_disagreement, delta_std_by_dim = (
+                self.model.predict_with_uncertainty_by_dim(s, a)
+            )
             delta_pred = np.array(delta_pred, dtype=np.float32)
             s_next_true = self._format_obs(s + delta_true)
             s_next_pred = self._format_obs(s + delta_pred)
@@ -186,6 +199,7 @@ class RWMModel:
             reward_errors.append(abs(float(r_pred) - float(r_true)))
             disagreements.append(delta_disagreement)
             reward_disagreements.append(reward_disagreement)
+            velocity_disagreements.append(max(float(delta_std_by_dim[1]), float(delta_std_by_dim[3])))
 
         self.last_diag = {
             "buffer_size": len(self.buffer),
@@ -198,6 +212,7 @@ class RWMModel:
             "next_state_mae": float(np.mean(next_state_errors)),
             "reward_mae": float(np.mean(reward_errors)),
             "delta_disagreement": float(np.mean(disagreements)),
+            "velocity_disagreement": float(np.mean(velocity_disagreements)),
             "reward_disagreement": float(np.mean(reward_disagreements)),
             "training_frozen": self.training_frozen,
             "best_delta_mae": None if self.best_diag is None else self.best_diag["delta_mae"],

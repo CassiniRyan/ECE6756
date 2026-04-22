@@ -20,7 +20,7 @@ class RWMModel:
     def __init__(
         self,
         model,
-        max_samples=50000,
+        max_samples=20000,
         min_samples=800,
         retrain_batches=2,
         batch_size=64,
@@ -103,11 +103,21 @@ class RWMModel:
         return np.clip(np.array(delta, dtype=np.float32), self.delta_low, self.delta_high)
 
     def _sample_training_batch(self):
-        """Sample a replay batch from the stored transitions."""
-        if len(self.buffer) < self.batch_size:
+        """Sample a replay batch with recency bias.
+
+        The policy distribution shifts as the agent improves.  Weighting recent
+        transitions more heavily keeps the model tracking the current state
+        distribution instead of being anchored to early random-policy data.
+        """
+        n = len(self.buffer)
+        if n < self.batch_size:
             raise ValueError("Not enough samples for a training batch")
 
-        return random.sample(self.buffer, self.batch_size)
+        # Linear ramp: the most recent entry gets weight 3, the oldest gets 1.
+        weights = np.linspace(1.0, 3.0, n, dtype=np.float64)
+        weights /= weights.sum()
+        indices = np.random.choice(n, size=self.batch_size, replace=False, p=weights)
+        return [self.buffer[i] for i in indices]
 
     def store(self, s, a, s_next, r, done=False):
         """
@@ -306,6 +316,22 @@ class RWMModel:
             "best_delta_mae": None if self.best_diag is None else self.best_diag["delta_mae"],
             "best_delta_disagreement": None if self.best_diag is None else self.best_diag["delta_disagreement"],
         }
+        # Log distribution shift: compare mean state of oldest vs newest quarter.
+        n = len(self.buffer)
+        if n >= 64:
+            q = n // 4
+            old_states = np.array([self.buffer[i][0] for i in range(q)])
+            new_states = np.array([self.buffer[i][0] for i in range(n - q, n)])
+            shift = np.abs(new_states.mean(axis=0) - old_states.mean(axis=0))
+            self._log(
+                "DIST_SHIFT",
+                x_shift=f"{shift[0]:.4f}",
+                v_shift=f"{shift[1]:.4f}",
+                th_shift=f"{shift[2]:.4f}",
+                om_shift=f"{shift[3]:.4f}",
+                buf=n,
+            )
+
         # --- diagnostic snapshot log ---
         d = self.last_diag
         dims = d["delta_mae_by_dim"]

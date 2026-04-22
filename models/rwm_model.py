@@ -1,7 +1,11 @@
 # Reactive world model wrapper that stores real transitions and generates synthetic samples.
 import copy
+import os
 import random
+import time
 import numpy as np
+
+_LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rwm_debug.log")
 
 class RWMModel:
     """
@@ -57,6 +61,34 @@ class RWMModel:
         self.best_score = float("inf")
         self.no_improve_count = 0
         self.training_frozen = False
+        self._was_ready = False
+
+        # Sample-call counters — reset to zero for each log window.
+        self._sc_total = 0
+        self._sc_accepted = 0
+        self._sc_rej_mean = 0    # rejected because mean disagreement too high
+        self._sc_rej_vel = 0     # rejected because velocity disagreement too high
+        self._sc_exhausted = 0   # all 10 retries failed
+
+        # Wipe the log at construction so each run starts fresh.
+        with open(_LOG_PATH, "w") as _f:
+            _f.write(f"# rwm_debug.log — started {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            _f.write(
+                "# Thresholds: ready_delta_mae={:.3f}  ready_velocity_mae={:.3f}"
+                "  ready_disagreement={:.4f}  ready_velocity_disagreement={:.4f}"
+                "  freeze_patience={}\n".format(
+                    ready_delta_mae, ready_velocity_mae,
+                    ready_disagreement, ready_velocity_disagreement,
+                    freeze_patience,
+                )
+            )
+
+    def _log(self, tag, **kwargs):
+        """Append one structured line to rwm_debug.log."""
+        ts = time.strftime("%H:%M:%S")
+        pairs = " ".join(f"{k}={v}" for k, v in kwargs.items())
+        with open(_LOG_PATH, "a") as f:
+            f.write(f"[{ts}][store={self.store_steps}][{tag}] {pairs}\n")
 
     def _format_obs(self, s):
         """Keep the real observation values so the model can learn true velocities."""
@@ -118,8 +150,29 @@ class RWMModel:
                     self.loss_ema = 0.98 * self.loss_ema + 0.02 * float(loss)
                 self.training_steps += 1
 
+                if self.training_steps % 100 == 0:
+                    train_ratio = self.training_steps / max(1, len(self.buffer))
+                    self._log(
+                        "TRAIN",
+                        train_step=self.training_steps,
+                        loss=f"{float(loss):.5f}",
+                        loss_ema=f"{self.loss_ema:.5f}",
+                        buffer=len(self.buffer),
+                        train_ratio=f"{train_ratio:.3f}",
+                        frozen=self.training_frozen,
+                        no_improve=self.no_improve_count,
+                    )
+
+        prev_frozen = self.training_frozen
         if self.training_steps / max(1, len(self.buffer)) >= self.max_train_ratio:
             self.training_frozen = True
+        if self.training_frozen and not prev_frozen:
+            self._log(
+                "FREEZE",
+                reason="max_train_ratio",
+                train_ratio=f"{self.training_steps / max(1, len(self.buffer)):.3f}",
+                train_step=self.training_steps,
+            )
 
     def sample(self):
         """
@@ -135,6 +188,8 @@ class RWMModel:
 
         # MBPO/PETS-style branching: always start from a real replay state and
         # reject imagined samples when ensemble members disagree too much.
+        self._sc_total += 1
+        last_mean_dis = last_vel_dis = float("nan")
         for _ in range(10):
             s, _, _, _, _ = random.choice(self.buffer)
             a = np.random.randint(0, self.model.num_actions)
@@ -143,15 +198,48 @@ class RWMModel:
             )
             # Reject if mean disagreement OR either velocity dimension is too uncertain.
             velocity_disagreement = max(float(delta_std_by_dim[1]), float(delta_std_by_dim[3]))
-            if (
-                delta_disagreement <= self.ready_disagreement
-                and velocity_disagreement <= self.ready_velocity_disagreement
-            ):
+            last_mean_dis = delta_disagreement
+            last_vel_dis = velocity_disagreement
+
+            mean_ok = delta_disagreement <= self.ready_disagreement
+            vel_ok = velocity_disagreement <= self.ready_velocity_disagreement
+            if mean_ok and vel_ok:
+                self._sc_accepted += 1
                 delta_pred = self._clip_sample_delta(delta_pred)
                 s_next = self._clip_sample_obs(np.array(s) + np.array(delta_pred, dtype=np.float32))
                 r_pred = float(np.clip(r_pred, 0.0, 1.0))
-                return tuple(float(v) for v in s), a, tuple(float(v) for v in s_next), r_pred
 
+                # Log a sample-rate summary every 50 accepted+exhausted calls.
+                if (self._sc_accepted + self._sc_exhausted) % 50 == 0:
+                    self._log(
+                        "SAMPLE_STATS",
+                        total=self._sc_total,
+                        accepted=self._sc_accepted,
+                        rej_mean_dis=self._sc_rej_mean,
+                        rej_vel_dis=self._sc_rej_vel,
+                        exhausted=self._sc_exhausted,
+                        accept_rate=f"{self._sc_accepted / max(1, self._sc_total):.3f}",
+                        thr_mean={self.ready_disagreement},
+                        thr_vel={self.ready_velocity_disagreement},
+                    )
+
+                return tuple(float(v) for v in s), a, tuple(float(v) for v in s_next), r_pred
+            elif not mean_ok:
+                self._sc_rej_mean += 1
+            else:
+                self._sc_rej_vel += 1
+
+        self._sc_exhausted += 1
+        # Log every exhausted event — these are the real signal that thresholds are too tight.
+        self._log(
+            "SAMPLE_EXHAUSTED",
+            last_mean_dis=f"{last_mean_dis:.5f}",
+            last_vel_dis=f"{last_vel_dis:.5f}",
+            thr_mean=self.ready_disagreement,
+            thr_vel=self.ready_velocity_disagreement,
+            total_exhausted=self._sc_exhausted,
+            total_calls=self._sc_total,
+        )
         raise Exception("World model uncertainty too high for planning sample")
 
     def planning_ratio(self, step):
@@ -218,7 +306,42 @@ class RWMModel:
             "best_delta_mae": None if self.best_diag is None else self.best_diag["delta_mae"],
             "best_delta_disagreement": None if self.best_diag is None else self.best_diag["delta_disagreement"],
         }
+        # --- diagnostic snapshot log ---
+        d = self.last_diag
+        dims = d["delta_mae_by_dim"]
+        vel_errors = dims[1], dims[3]
+        ready_vel_ok = max(vel_errors) <= self.ready_velocity_mae
+        ready_mae_ok = d["delta_mae"] <= self.ready_delta_mae
+        ready_dis_ok = d["delta_disagreement"] <= self.ready_disagreement
+        self._log(
+            "DIAG",
+            buf=d["buffer_size"],
+            train_steps=d["training_steps"],
+            train_ratio=f"{d['train_ratio']:.3f}",
+            frozen=d["training_frozen"],
+            no_improve=self.no_improve_count,
+            loss_ema=f"{d['loss_ema']:.5f}" if d["loss_ema"] else "None",
+            delta_mae=f"{d['delta_mae']:.4f}",
+            x_mae=f"{dims[0]:.4f}",
+            v_mae=f"{dims[1]:.4f}",
+            th_mae=f"{dims[2]:.4f}",
+            om_mae=f"{dims[3]:.4f}",
+            mean_dis=f"{d['delta_disagreement']:.5f}",
+            vel_dis=f"{d['velocity_disagreement']:.5f}",
+            best_mae=f"{d['best_delta_mae']:.4f}" if d["best_delta_mae"] else "None",
+            ready_mae_ok=ready_mae_ok,
+            ready_vel_ok=ready_vel_ok,
+            ready_dis_ok=ready_dis_ok,
+        )
+
         self._update_best_model()
+
+        # Log a readiness transition when the model first becomes usable.
+        is_ready = self._diagnostics_ready()
+        if is_ready and not self._was_ready:
+            self._log("MODEL_READY", train_steps=self.training_steps, buf=len(self.buffer))
+        self._was_ready = is_ready
+
         return self.last_diag
 
     def _diagnostics_ready(self):
@@ -245,12 +368,32 @@ class RWMModel:
         )
 
         if score + 1e-4 < self.best_score:
+            prev_best = self.best_score
             self.best_score = score
             self.best_diag = dict(self.last_diag)
             self.best_model.load_exported_state(self.model.export_state())
             self.no_improve_count = 0
             self.training_frozen = self.training_steps / max(1, len(self.buffer)) >= self.max_train_ratio
+            self._log(
+                "BEST_MODEL",
+                new_score=f"{score:.5f}",
+                prev_score=f"{prev_best:.5f}",
+                delta_mae=f"{self.last_diag['delta_mae']:.4f}",
+                vel_dis=f"{self.last_diag['velocity_disagreement']:.5f}",
+                train_steps=self.training_steps,
+            )
         else:
             self.no_improve_count += 1
+            was_frozen = self.training_frozen
             if self.no_improve_count >= self.freeze_patience:
                 self.training_frozen = True
+            if self.training_frozen and not was_frozen:
+                self._log(
+                    "FREEZE",
+                    reason="patience_exhausted",
+                    no_improve_count=self.no_improve_count,
+                    freeze_patience=self.freeze_patience,
+                    best_score=f"{self.best_score:.5f}",
+                    current_score=f"{score:.5f}",
+                    train_steps=self.training_steps,
+                )

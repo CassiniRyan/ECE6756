@@ -31,7 +31,7 @@ class RWMModel:
         train_every=8,
         # diagnostics() is called every ~1000 steps; 30 means ~30k steps before freeze.
         freeze_patience=30,
-        max_train_ratio=0.90,
+        max_train_ratio=10.0,
     ):
         self.model = model
         self.best_model = copy.deepcopy(model)
@@ -62,6 +62,7 @@ class RWMModel:
         self.no_improve_count = 0
         self.training_frozen = False
         self._was_ready = False
+        self._loss_500_ago = None
 
         # Sample-call counters — reset to zero for each log window.
         self._sc_total = 0
@@ -103,21 +104,18 @@ class RWMModel:
         return np.clip(np.array(delta, dtype=np.float32), self.delta_low, self.delta_high)
 
     def _sample_training_batch(self):
-        """Sample a replay batch with recency bias.
+        """Sample a replay batch uniformly from the buffer.
 
-        The policy distribution shifts as the agent improves.  Weighting recent
-        transitions more heavily keeps the model tracking the current state
-        distribution instead of being anchored to early random-policy data.
+        DIST_SHIFT logs show the state distribution does not meaningfully shift
+        over training (std-ratio stays near 1.0), so recency bias provides no
+        benefit and was causing catastrophic forgetting once the buffer started
+        rolling (store>20000).  Uniform sampling is correct here.
         """
         n = len(self.buffer)
         if n < self.batch_size:
             raise ValueError("Not enough samples for a training batch")
 
-        # Linear ramp: the most recent entry gets weight 3, the oldest gets 1.
-        weights = np.linspace(1.0, 3.0, n, dtype=np.float64)
-        weights /= weights.sum()
-        indices = np.random.choice(n, size=self.batch_size, replace=False, p=weights)
-        return [self.buffer[i] for i in indices]
+        return random.sample(self.buffer, self.batch_size)
 
     def store(self, s, a, s_next, r, done=False):
         """
@@ -162,11 +160,19 @@ class RWMModel:
 
                 if self.training_steps % 100 == 0:
                     train_ratio = self.training_steps / max(1, len(self.buffer))
+                    # Flag if loss_ema is rising compared to 500 steps ago.
+                    rising = (
+                        self._loss_500_ago is not None
+                        and self.loss_ema > self._loss_500_ago * 1.1
+                    )
+                    if self.training_steps % 500 == 0:
+                        self._loss_500_ago = self.loss_ema
                     self._log(
                         "TRAIN",
                         train_step=self.training_steps,
                         loss=f"{float(loss):.5f}",
                         loss_ema=f"{self.loss_ema:.5f}",
+                        loss_RISING=rising,
                         buffer=len(self.buffer),
                         train_ratio=f"{train_ratio:.3f}",
                         frozen=self.training_frozen,

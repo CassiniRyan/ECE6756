@@ -45,8 +45,8 @@ def main():
         # Continuous linear model: fit one-step dynamics in observation space,
         # then discretize the imagined transitions before Q-updates.
         bins_per_dim = 12
-        model = LinearModel(action_space=env.action_space.n)
-        planning_steps = 6
+        model = LinearModel(action_space=env.action_space.n, mse_threshold=0.02)
+        planning_steps = 2
 
     elif args.algo == "rwm-q":
         from models.rwm_model import RWMModel
@@ -61,7 +61,7 @@ def main():
         model = RWMModel(wm)
         planning_steps = 4
 
-    agent = Agent(env, model=model, planning_steps=planning_steps, bins_per_dim=bins_per_dim)
+    agent = Agent(env, model=model, planning_steps=planning_steps, bins_per_dim=bins_per_dim, log_name=algo_name)
 
     if args.mode == "train":
         # Train the agent for the requested number of episodes.
@@ -114,18 +114,6 @@ def main():
                     plt.close(fig)
                     print("Saved plot -> rwm-q_prediction_debug.png")
 ####################################################
-
-            os.makedirs("logs", exist_ok=True)
-
-            log_data = {
-                "algo": algo_name,
-                "episodes": args.episodes,
-                "rewards": rewards
-            }
-
-            # Persist logs and weights so later plots do not need retraining.
-            with open(f"logs/{algo_name}.json", "w") as f:
-                json.dump(log_data, f)
 
             agent.save(f"logs/q_table_{algo_name}.npy")
 

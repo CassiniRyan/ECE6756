@@ -7,8 +7,9 @@ import random
 class Agent:
     """Agent wrapper for training, saving, loading, and policy evaluation."""
 
-    def __init__(self, env, model=None, planning_steps=0, bins_per_dim=10):
+    def __init__(self, env, model=None, planning_steps=0, bins_per_dim=10, log_name=None):
         self.env = env
+        self.log_name = log_name
         self.disc = Discretizer(bins_per_dim=bins_per_dim)
         self.q = QLearning(env.action_space.n, bins_per_dim=bins_per_dim)
         self.model = model
@@ -73,14 +74,15 @@ class Agent:
                                     done_m = False
 
                                 if getattr(self.model, "returns_continuous", False):
-                                    # The Q-table lives in discretized state space even
-                                    # when the planning model predicts continuous states.
                                     s_m_d = self.disc.discretize(s_m)
                                     s_next_m_d = self.disc.discretize(s_next_m)
                                 else:
                                     s_m_d, s_next_m_d = s_m, s_next_m
 
                                 self.q.update(s_m_d, a_m, r_m, s_next_m_d, done=done_m)
+
+                                if hasattr(self.model, "_plan_count"):
+                                    self.model._plan_count += 1
                             except Exception:
                                 # Ignore sampling failures if the model is not ready.
                                 pass
@@ -92,39 +94,59 @@ class Agent:
 
                 if self.global_step % 1000 == 0:
                     model_ready = self.model is not None and self.model.ready()
-                    print(
-                        f"[Step {self.global_step}] planning_ratio={ratio:.3f} "
-                        f"model_ready={model_ready}"
-                    )
                     if self.model is not None and hasattr(self.model, "diagnostics"):
                         diag = self.model.diagnostics()
-                        if diag is not None:
+                        if diag is not None and "delta_mae_by_dim" in diag:
                             delta_dims = ", ".join(f"{v:.4f}" for v in diag["delta_mae_by_dim"])
                             print(
-                                "[ModelDiag] "
-                                f"buffer={diag['buffer_size']} "
-                                f"train_steps={diag['training_steps']} "
-                                f"train_ratio={diag['train_ratio']:.2f} "
-                                f"training_frozen={diag['training_frozen']} "
-                                f"loss_ema={diag['loss_ema']:.4f} "
-                                f"delta_mae={diag['delta_mae']:.4f} "
-                                f"delta_mae_by_dim=[{delta_dims}] "
-                                f"next_state_mae={diag['next_state_mae']:.4f} "
-                                f"reward_mae={diag['reward_mae']:.4f} "
-                                f"delta_disagreement={diag['delta_disagreement']:.4f} "
-                                f"velocity_disagreement={diag.get('velocity_disagreement', float('nan')):.4f} "
-                                f"reward_disagreement={diag['reward_disagreement']:.4f} "
-                                f"best_delta_mae={diag['best_delta_mae'] if diag['best_delta_mae'] is not None else 'None'} "
-                                f"best_delta_disagreement={diag['best_delta_disagreement'] if diag['best_delta_disagreement'] is not None else 'None'}"
+                                f"[Step {self.global_step}] ready={model_ready} "
+                                f"ratio={ratio:.3f} "
+                                f"buf={diag['buffer_size']} "
+                                f"train={diag['training_steps']} "
+                                f"loss={diag['loss_ema']:.4f} "
+                                f"mae={diag['delta_mae']:.4f} [{delta_dims}] "
+                                f"dis={diag['delta_disagreement']:.4f} "
+                                f"vel_dis={diag.get('velocity_disagreement', float('nan')):.4f}"
                             )
+                        elif diag is not None:
+                            print(
+                                f"[Step {self.global_step}] ready={model_ready} "
+                                f"ratio={ratio:.3f} "
+                                f"buf={diag.get('buffer', '')} "
+                                f"mse={diag.get('mse', '')} "
+                                f"mae={diag.get('delta_mae', '')} "
+                                f"plan_err={diag.get('plan_pred_err', '')} "
+                                f"plan_n={diag.get('plan_count', '')}"
+                            )
+                        else:
+                            print(
+                                f"[Step {self.global_step}] ready={model_ready} "
+                                f"ratio={ratio:.3f}"
+                            )
+                    else:
+                        print(
+                            f"[Step {self.global_step}] ready={model_ready} "
+                            f"ratio={ratio:.3f}"
+                        )
 
             rewards.append(total)
             self.q.decay()
 
+            if self.log_name and (ep + 1) % 100 == 0:
+                self._flush_log(rewards, ep + 1)
+
             if ep % 100 == 0:
                 print(f"Ep {ep} Reward {total} Epsilon {self.q.epsilon:.3f}")
 
+        if self.log_name:
+            self._flush_log(rewards, len(rewards))
         return rewards
+
+    def _flush_log(self, rewards, ep):
+        import json, os
+        os.makedirs("logs", exist_ok=True)
+        with open(f"logs/{self.log_name}.json", "w") as f:
+            json.dump({"algo": self.log_name, "episodes": ep, "rewards": rewards}, f)
 
     def save(self, path):
         """Save the current Q-table to a NumPy .npy file."""

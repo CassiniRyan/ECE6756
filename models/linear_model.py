@@ -1,3 +1,5 @@
+import csv
+import os
 import random
 import numpy as np
 
@@ -5,6 +7,14 @@ try:
     import torch
 except ImportError:  # pragma: no cover - optional dependency
     torch = None
+
+_LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+_CSV_PATH = os.path.join(_LOG_DIR, "linear_model_metrics.csv")
+_CSV_FIELDS = [
+    "step", "buffer", "mse", "ready",
+    "delta_mae", "delta_mae_x", "delta_mae_v", "delta_mae_th", "delta_mae_om",
+    "reward_mae", "plan_pred_err", "plan_count",
+]
 
 
 class LinearModel:
@@ -23,6 +33,7 @@ class LinearModel:
         reg=1e-2,
         min_samples=300,
         mse_threshold=0.03,
+        pred_err_threshold=0.25,
     ):
         self.state_dim = state_dim
         self.action_space = action_space
@@ -31,6 +42,8 @@ class LinearModel:
         self.reg = float(reg)
         self.min_samples = min_samples
         self.mse_threshold = float(mse_threshold)
+        self.pred_err_threshold = float(pred_err_threshold)
+        self._last_pred_err = None
         self.store_continuous = True
         self.returns_continuous = True
         self.device = self._select_device()
@@ -44,6 +57,14 @@ class LinearModel:
         self.delta_weights = None  # shape (feature_dim, state_dim)
         self.reward_weights = None  # shape (feature_dim,)
         self.last_mse = None
+
+        self._plan_count = 0
+
+        os.makedirs(_LOG_DIR, exist_ok=True)
+        self._csv_file = open(_CSV_PATH, "w", newline="")
+        self._csv_writer = csv.DictWriter(self._csv_file, fieldnames=_CSV_FIELDS)
+        self._csv_writer.writeheader()
+        self._csv_file.flush()
 
     def _select_device(self):
         """Use CUDA for the linear algebra backend when PyTorch can access it."""
@@ -176,8 +197,63 @@ class LinearModel:
         return tuple(float(v) for v in s), a, tuple(float(v) for v in s_next_pred), r_pred, done
 
     def planning_ratio(self, step):
-        """Use the linear model like a lightweight one-step Dyna planner."""
-        return 1.0
+        """Ramp in planning conservatively, gate on prediction quality."""
+        if step < 2000:
+            return 0.0
+        if self.last_mse is not None and self.last_mse > self.mse_threshold:
+            return 0.0
+        if self._last_pred_err is not None and self._last_pred_err > self.pred_err_threshold:
+            return 0.0
+        if step < 5000:
+            return 0.3 * (step - 2000) / 3000
+        return 0.3
+
+    def diagnostics(self, sample_size=128):
+        """Compute prediction quality on buffer samples and write a CSV row."""
+        if len(self.buffer) < max(32, sample_size) or self.delta_weights is None:
+            return None
+
+        batch = random.sample(self.buffer, min(sample_size, len(self.buffer)))
+        delta_errors_by_dim = []
+        reward_errors = []
+        next_state_errors = []
+        for s, a, s_next, r, _ in batch:
+            x = self._features(s, a)
+            if self.use_torch_backend:
+                x_t = torch.tensor(x, dtype=torch.float32, device=self.device)
+                delta_pred = (x_t @ self.delta_weights).detach().cpu().numpy()
+                r_pred = float((x_t @ self.reward_weights).item())
+            else:
+                delta_pred = x @ self.delta_weights
+                r_pred = float(x @ self.reward_weights)
+            delta_true = (np.array(s_next) - np.array(s)) / self.obs_scale
+            delta_errors_by_dim.append(np.abs(delta_pred - delta_true))
+            reward_errors.append(abs(r_pred - r))
+            s_next_pred = self._clip_obs(np.array(s) + delta_pred * self.obs_scale)
+            next_state_errors.append(float(np.mean(np.abs(s_next_pred - np.array(s_next)))))
+
+        dim_mae = np.mean(np.array(delta_errors_by_dim), axis=0)
+        pred_err = float(np.mean(next_state_errors))
+        self._last_pred_err = pred_err
+
+        row = {
+            "step": self._plan_count,
+            "buffer": len(self.buffer),
+            "mse": f"{self.last_mse:.6f}" if self.last_mse else "",
+            "ready": self.ready(),
+            "delta_mae": f"{float(np.mean(dim_mae)):.6f}",
+            "delta_mae_x": f"{dim_mae[0]:.6f}",
+            "delta_mae_v": f"{dim_mae[1]:.6f}",
+            "delta_mae_th": f"{dim_mae[2]:.6f}",
+            "delta_mae_om": f"{dim_mae[3]:.6f}",
+            "reward_mae": f"{float(np.mean(reward_errors)):.6f}",
+            "plan_pred_err": f"{pred_err:.6f}",
+            "plan_count": self._plan_count,
+        }
+        self._csv_writer.writerow(row)
+        self._csv_file.flush()
+
+        return row
 
     def ready(self):
         """Return True when the model has enough data, fitted weights, and low validation error."""

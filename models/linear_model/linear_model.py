@@ -3,18 +3,12 @@ import os
 import random
 import numpy as np
 
+from .linear_model_config import CSV_FIELDS, CSV_PATH, LOG_DIR, OBS_HIGH, OBS_LOW, OBS_SCALE
+
 try:
     import torch
 except ImportError:  # pragma: no cover - optional dependency
     torch = None
-
-_LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
-_CSV_PATH = os.path.join(_LOG_DIR, "linear_model_metrics.csv")
-_CSV_FIELDS = [
-    "step", "buffer", "mse", "ready",
-    "delta_mae", "delta_mae_x", "delta_mae_v", "delta_mae_th", "delta_mae_om",
-    "reward_mae", "plan_pred_err", "plan_count",
-]
 
 
 class LinearModel:
@@ -49,20 +43,21 @@ class LinearModel:
         self.device = self._select_device()
         self.use_torch_backend = self.device != "cpu"
 
-        self.obs_low = np.array([-4.8, -5.0, -0.418, -5.0], dtype=np.float32)
-        self.obs_high = np.array([4.8, 5.0, 0.418, 5.0], dtype=np.float32)
-        self.obs_scale = np.maximum(np.abs(self.obs_high), 1e-6)
+        self.obs_low = OBS_LOW
+        self.obs_high = OBS_HIGH
+        self.obs_scale = OBS_SCALE
 
         self.buffer = []
+        self.store_steps = 0
         self.delta_weights = None  # shape (feature_dim, state_dim)
         self.reward_weights = None  # shape (feature_dim,)
         self.last_mse = None
 
         self._plan_count = 0
 
-        os.makedirs(_LOG_DIR, exist_ok=True)
-        self._csv_file = open(_CSV_PATH, "w", newline="")
-        self._csv_writer = csv.DictWriter(self._csv_file, fieldnames=_CSV_FIELDS)
+        os.makedirs(LOG_DIR, exist_ok=True)
+        self._csv_file = open(CSV_PATH, "w", newline="")
+        self._csv_writer = csv.DictWriter(self._csv_file, fieldnames=CSV_FIELDS)
         self._csv_writer.writeheader()
         self._csv_file.flush()
 
@@ -170,8 +165,9 @@ class LinearModel:
         self.buffer.append((s_clip, int(a), s_next_clip, float(r), bool(done)))
         if len(self.buffer) > self.max_samples:
             self.buffer.pop(0)
+        self.store_steps += 1
 
-        if len(self.buffer) >= self.min_samples and len(self.buffer) % self.retrain_every == 0:
+        if len(self.buffer) >= self.min_samples and self.store_steps % self.retrain_every == 0:
             self._fit()
 
     def sample(self):

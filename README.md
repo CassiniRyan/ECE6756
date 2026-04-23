@@ -31,3 +31,10 @@ python main.py --mode run --algo q
 - models: environment models (tabular / world model)
 - third_party: external model placeholder
 
+
+## evaluation
+python evaluation/sliding_window_plot.py --log-dir logs
+python evaluation/sliding_window_plot.py --log-dir logs --tasks q rwm-q dyna-q-linear
+python evaluation/sliding_window_plot.py --log-dir logs --window 200
+python evaluation/sliding_window_plot.py --log-dir logs --output evaluation/my_plot.png
+

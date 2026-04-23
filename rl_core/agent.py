@@ -13,6 +13,8 @@ class Agent:
         self.disc = Discretizer(bins_per_dim=bins_per_dim)
         self.q = QLearning(env.action_space.n, bins_per_dim=bins_per_dim)
         self.model = model
+        if self.model is not None and hasattr(self.model, "set_discretizer"):
+            self.model.set_discretizer(self.disc)
         self.planning_steps = planning_steps
         self.planning_budget = 0.0
         self.global_step = 0  # Total number of environment steps taken.
@@ -53,7 +55,7 @@ class Agent:
                         self.model.store(obs, a, obs_next, r, done)
                     else:
                         # Tabular models only need discretized state ids.
-                        self.model.store(s, a, s_next, r)
+                        self.model.store(s, a, s_next, r, done)
 
                 # Optionally perform additional model-based planning updates.
                 ratio = self.planning_ratio(self.global_step)
@@ -98,20 +100,25 @@ class Agent:
                         diag = self.model.diagnostics()
                         if diag is not None and "delta_mae_by_dim" in diag:
                             delta_dims = ", ".join(f"{v:.4f}" for v in diag["delta_mae_by_dim"])
+                            bin_acc = diag.get("discrete_bin_accuracy")
+                            bin_acc_text = "None" if bin_acc is None else f"{bin_acc:.3f}"
                             print(
                                 f"[Step {self.global_step}] ready={model_ready} "
-                                f"ratio={ratio:.3f} "
+                                f"plan_ratio={ratio:.3f} "
                                 f"buf={diag['buffer_size']} "
                                 f"train={diag['training_steps']} "
-                                f"loss={diag['loss_ema']:.4f} "
+                                f"train_ratio={diag.get('train_ratio', float('nan')):.3f} "
+                                f"frozen={diag.get('training_frozen', False)} "
+                                f"loss={diag['loss_ema']:.3e} "
                                 f"mae={diag['delta_mae']:.4f} [{delta_dims}] "
+                                f"bin_acc={bin_acc_text} "
                                 f"dis={diag['delta_disagreement']:.4f} "
                                 f"vel_dis={diag.get('velocity_disagreement', float('nan')):.4f}"
                             )
                         elif diag is not None:
                             print(
                                 f"[Step {self.global_step}] ready={model_ready} "
-                                f"ratio={ratio:.3f} "
+                                f"plan_ratio={ratio:.3f} "
                                 f"buf={diag.get('buffer', '')} "
                                 f"mse={diag.get('mse', '')} "
                                 f"mae={diag.get('delta_mae', '')} "
@@ -121,12 +128,12 @@ class Agent:
                         else:
                             print(
                                 f"[Step {self.global_step}] ready={model_ready} "
-                                f"ratio={ratio:.3f}"
+                                f"plan_ratio={ratio:.3f}"
                             )
                     else:
                         print(
                             f"[Step {self.global_step}] ready={model_ready} "
-                            f"ratio={ratio:.3f}"
+                            f"plan_ratio={ratio:.3f}"
                         )
 
             rewards.append(total)

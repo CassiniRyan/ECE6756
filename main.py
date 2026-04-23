@@ -59,7 +59,7 @@ def main():
         # Neural world model used by the reactive world-model planner.
         wm = WorldModel(state_dim=4, action_dim=1, num_actions=env.action_space.n, device=device)
         model = RWMModel(wm)
-        planning_steps = 4
+        planning_steps = 1
 
     agent = Agent(env, model=model, planning_steps=planning_steps, bins_per_dim=bins_per_dim, log_name=algo_name)
 
@@ -73,6 +73,8 @@ def main():
 
 ##################################################
             import matplotlib.pyplot as plt
+            debug_dir = "debug"
+            os.makedirs(debug_dir, exist_ok=True)
 
             # Save a quick visual summary after each training run.
             plt.plot(rewards)
@@ -81,8 +83,9 @@ def main():
             plt.title(f"Training Curve ({algo_name})")
             plt.grid()
 
-            plt.savefig(f"{algo_name}_debug.png")  # safe on server
-            print(f"Saved plot -> {algo_name}_debug.png")
+            debug_plot_path = os.path.join(debug_dir, f"{algo_name}_debug.png")
+            plt.savefig(debug_plot_path)  # safe on server
+            print(f"Saved plot -> {debug_plot_path}")
 
             agent.save("q_table.npy")
 
@@ -110,9 +113,10 @@ def main():
                         ax.grid(True, alpha=0.3)
 
                     fig.tight_layout()
-                    fig.savefig("rwm-q_prediction_debug.png")
+                    prediction_debug_path = os.path.join(debug_dir, "rwm-q_prediction_debug.png")
+                    fig.savefig(prediction_debug_path)
                     plt.close(fig)
-                    print("Saved plot -> rwm-q_prediction_debug.png")
+                    print(f"Saved plot -> {prediction_debug_path}")
 ####################################################
 
             agent.save(f"logs/q_table_{algo_name}.npy")

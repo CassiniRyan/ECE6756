@@ -459,6 +459,9 @@ class RWMModel:
     def _update_best_model(self):
         if self.last_diag is None:
             return
+        # Once frozen, keep using the best snapshot — no more rollbacks or logging.
+        if self.training_frozen:
+            return
 
         score = (
             self.last_diag["delta_mae"]

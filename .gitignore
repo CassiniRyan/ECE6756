@@ -1,0 +1,16 @@
+# Local environments
+.venv/
+venv/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Large binary training checkpoints
+*.npy
+
+# Local editor/OS noise
+.DS_Store
+.idea/
+.vscode/

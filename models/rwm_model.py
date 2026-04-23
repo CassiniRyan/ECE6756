@@ -29,9 +29,9 @@ class RWMModel:
         ready_disagreement=0.04,
         ready_velocity_disagreement=0.03,
         train_every=8,
-        # diagnostics() is called every ~1000 steps; 30 means ~30k steps before freeze.
-        freeze_patience=30,
-        max_train_ratio=10.0,
+        # diagnostics() is called every ~1000 steps; a smaller patience stops drift.
+        freeze_patience=12,
+        max_train_ratio=1.0,
     ):
         self.model = model
         self.best_model = copy.deepcopy(model)
@@ -63,6 +63,8 @@ class RWMModel:
         self.training_frozen = False
         self._was_ready = False
         self._loss_500_ago = None
+        self.history_horizon = int(getattr(self.model, "history_horizon", 1))
+        self.rollback_count = 0
 
         # Sample-call counters — reset to zero for each log window.
         self._sc_total = 0
@@ -104,18 +106,55 @@ class RWMModel:
         return np.clip(np.array(delta, dtype=np.float32), self.delta_low, self.delta_high)
 
     def _sample_training_batch(self):
-        """Sample a replay batch uniformly from the buffer.
-
-        DIST_SHIFT logs show the state distribution does not meaningfully shift
-        over training (std-ratio stays near 1.0), so recency bias provides no
-        benefit and was causing catastrophic forgetting once the buffer started
-        rolling (store>20000).  Uniform sampling is correct here.
-        """
+        """Sample a replay batch of short histories ending at real transitions."""
         n = len(self.buffer)
         if n < self.batch_size:
             raise ValueError("Not enough samples for a training batch")
+        indices = random.choices(range(n), k=self.batch_size)
+        state_seq = []
+        action_seq = []
+        delta = []
+        reward = []
+        for idx in indices:
+            s_hist, a_hist = self._build_model_input(idx)
+            state_seq.append(s_hist)
+            action_seq.append(a_hist)
+            delta.append(self.buffer[idx][2])
+            reward.append(self.buffer[idx][3])
+        return (
+            np.array(state_seq, dtype=np.float32),
+            np.array(action_seq, dtype=np.int64),
+            np.array(delta, dtype=np.float32),
+            np.array(reward, dtype=np.float32),
+        )
 
-        return random.sample(self.buffer, self.batch_size)
+    def _build_model_input(self, idx, action_override=None):
+        """Build a short state-action history ending at transition idx."""
+        states = []
+        actions = []
+        cursor = idx
+        while len(states) < self.history_horizon and cursor >= 0:
+            s, a, _, _, done = self.buffer[cursor]
+            states.append(np.array(s, dtype=np.float32))
+            actions.append(int(a))
+            if cursor > 0 and self.buffer[cursor - 1][4]:
+                break
+            cursor -= 1
+
+        states.reverse()
+        actions.reverse()
+
+        if action_override is not None and actions:
+            actions[-1] = int(action_override)
+
+        if len(states) < self.history_horizon:
+            pad_state = np.array(states[0], dtype=np.float32) if states else np.zeros_like(self.sample_low)
+            pad_action = 0
+            pad_count = self.history_horizon - len(states)
+            states = [pad_state.copy() for _ in range(pad_count)] + states
+            actions = [pad_action for _ in range(pad_count)] + actions
+
+        return np.array(states, dtype=np.float32), np.array(actions, dtype=np.int64)
 
     def store(self, s, a, s_next, r, done=False):
         """
@@ -145,13 +184,7 @@ class RWMModel:
             # Update the neural model online from small replay batches.
             for _ in range(self.retrain_batches):
                 batch = self._sample_training_batch()
-
-                s_b = np.array([b[0] for b in batch])
-                a_b = np.array([b[1] for b in batch])
-                delta_b = np.array([b[2] for b in batch])
-                r_b = np.array([b[3] for b in batch])
-
-                loss = self.model.train_batch((s_b, a_b, delta_b, r_b))
+                loss = self.model.train_batch(batch)
                 if self.loss_ema is None:
                     self.loss_ema = float(loss)
                 else:
@@ -207,10 +240,12 @@ class RWMModel:
         self._sc_total += 1
         last_mean_dis = last_vel_dis = float("nan")
         for _ in range(10):
-            s, _, _, _, _ = random.choice(self.buffer)
+            idx = random.randrange(len(self.buffer))
+            s, _, _, _, _ = self.buffer[idx]
             a = np.random.randint(0, self.model.num_actions)
+            s_hist, a_hist = self._build_model_input(idx, action_override=a)
             delta_pred, r_pred, delta_disagreement, reward_disagreement, delta_std_by_dim = (
-                self.best_model.predict_with_uncertainty_by_dim(s, a)
+                self.best_model.predict_with_uncertainty_by_dim(s_hist, a_hist)
             )
             # Reject if mean disagreement OR either velocity dimension is too uncertain.
             velocity_disagreement = max(float(delta_std_by_dim[1]), float(delta_std_by_dim[3]))
@@ -259,13 +294,8 @@ class RWMModel:
         raise Exception("World model uncertainty too high for planning sample")
 
     def planning_ratio(self, step):
-        """Ramp in neural-model planning conservatively to avoid bad early rollouts."""
-        if step < 3000:
-            return 0.0
-        if step < 6000:
-            # Let the world model warm up before it contributes many synthetic updates.
-            return 0.5 * (step - 3000) / 3000
-        return 0.5
+        """Disable planning while we monitor world-model learning in isolation."""
+        return 0.0
 
     def ready(self):
         """Model is ready when the best saved model has good prediction quality."""
@@ -280,7 +310,7 @@ class RWMModel:
         if len(self.buffer) < max(32, sample_size):
             return None
 
-        batch = random.sample(self.buffer, min(sample_size, len(self.buffer)))
+        indices = random.sample(range(len(self.buffer)), min(sample_size, len(self.buffer)))
         delta_errors = []
         delta_errors_by_dim = []
         next_state_errors = []
@@ -289,9 +319,11 @@ class RWMModel:
         reward_disagreements = []
 
         velocity_disagreements = []
-        for s, a, delta_true, r_true, _ in batch:
+        for idx in indices:
+            s, a, delta_true, r_true, _ = self.buffer[idx]
+            s_hist, a_hist = self._build_model_input(idx)
             delta_pred, r_pred, delta_disagreement, reward_disagreement, delta_std_by_dim = (
-                self.model.predict_with_uncertainty_by_dim(s, a)
+                self.model.predict_with_uncertainty_by_dim(s_hist, a_hist)
             )
             delta_pred = np.array(delta_pred, dtype=np.float32)
             s_next_true = self._format_obs(s + delta_true)
@@ -382,6 +414,35 @@ class RWMModel:
 
         return self.last_diag
 
+    def debug_prediction_snapshot(self, sample_size=256):
+        """Collect real-vs-predicted next-state values for a quick debug plot.
+
+        This helper is intentionally lightweight and plotting-specific so we can
+        remove it later without touching the main training logic.
+        """
+        if len(self.buffer) < max(16, sample_size):
+            return None
+
+        indices = random.sample(range(len(self.buffer)), min(sample_size, len(self.buffer)))
+        pred_next = []
+        real_next = []
+
+        for idx in indices:
+            s, _, delta_true, _, _ = self.buffer[idx]
+            s_hist, a_hist = self._build_model_input(idx)
+            delta_pred, _, _, _ = self.model.predict_with_uncertainty(s_hist, a_hist)
+            pred_next.append(self._format_obs(s + np.array(delta_pred, dtype=np.float32)))
+            real_next.append(self._format_obs(s + delta_true))
+
+        pred_next = np.array(pred_next, dtype=np.float32)
+        real_next = np.array(real_next, dtype=np.float32)
+
+        return {
+            "labels": ["x", "x_dot", "theta", "theta_dot"],
+            "pred_next": pred_next,
+            "real_next": real_next,
+        }
+
     def _diagnostics_ready(self):
         if self.best_diag is None:
             self.last_diag = self.diagnostics()
@@ -429,18 +490,32 @@ class RWMModel:
                 current_score=f"{score:.5f}",
                 train_steps=self.training_steps,
             )
-            # When the model has drifted away from its best, roll its weights back
-            # to the best snapshot and let it re-adapt to the current buffer.
-            # Never freeze by patience — only max_train_ratio stops training.
-            if self.no_improve_count % 10 == 0:
+            # If the live model drifts away from the best snapshot, roll it back.
+            # If that keeps happening, stop live training and keep using the best model.
+            if self.no_improve_count % 5 == 0:
                 self.model.load_exported_state(self.best_model.export_state())
                 # Reset Adam momentum/variance so stale optimiser state from the
                 # degraded run doesn't immediately corrupt the restored weights.
                 self.model.reset_optimizers()
+                self.rollback_count += 1
                 self._log(
                     "ROLLBACK",
                     reason="score_degraded",
                     no_improve_count=self.no_improve_count,
+                    rollback_count=self.rollback_count,
+                    best_score=f"{self.best_score:.5f}",
+                    current_score=f"{score:.5f}",
+                    train_steps=self.training_steps,
+                )
+            if self.no_improve_count >= self.freeze_patience:
+                self.training_frozen = True
+                self.model.load_exported_state(self.best_model.export_state())
+                self.model.reset_optimizers()
+                self._log(
+                    "FREEZE",
+                    reason="patience_exceeded",
+                    no_improve_count=self.no_improve_count,
+                    rollback_count=self.rollback_count,
                     best_score=f"{self.best_score:.5f}",
                     current_score=f"{score:.5f}",
                     train_steps=self.training_steps,

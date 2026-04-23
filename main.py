@@ -85,6 +85,34 @@ def main():
             print(f"Saved plot -> {algo_name}_debug.png")
 
             agent.save("q_table.npy")
+
+            # --- Temporary RWM debug plot: real vs predicted next-state values ---
+            # This block is intentionally isolated and easy to remove later.
+            if algo_name == "rwm-q" and model is not None and hasattr(model, "debug_prediction_snapshot"):
+                snapshot = model.debug_prediction_snapshot()
+                if snapshot is not None:
+                    pred_next = snapshot["pred_next"]
+                    real_next = snapshot["real_next"]
+                    labels = snapshot["labels"]
+
+                    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+                    axes = axes.flatten()
+
+                    for i, label in enumerate(labels):
+                        ax = axes[i]
+                        ax.scatter(real_next[:, i], pred_next[:, i], s=12, alpha=0.55)
+                        lo = min(real_next[:, i].min(), pred_next[:, i].min())
+                        hi = max(real_next[:, i].max(), pred_next[:, i].max())
+                        ax.plot([lo, hi], [lo, hi], "r--", linewidth=1)
+                        ax.set_title(f"{label}: predicted vs real")
+                        ax.set_xlabel("Real next value")
+                        ax.set_ylabel("Predicted next value")
+                        ax.grid(True, alpha=0.3)
+
+                    fig.tight_layout()
+                    fig.savefig("rwm-q_prediction_debug.png")
+                    plt.close(fig)
+                    print("Saved plot -> rwm-q_prediction_debug.png")
 ####################################################
 
             os.makedirs("logs", exist_ok=True)

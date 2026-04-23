@@ -85,6 +85,7 @@ class Agent:
                                 # Ignore sampling failures if the model is not ready.
                                 pass
 
+                obs = obs_next
                 s = s_next
                 total += r
                 self.global_step += 1

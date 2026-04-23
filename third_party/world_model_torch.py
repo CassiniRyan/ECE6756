@@ -7,7 +7,7 @@ import torch.optim as optim
 
 class _DynamicsMember(nn.Module):
     """
-    One ensemble member.  Predicts (delta, reward) directly from (s, a).
+    One ensemble member. Predicts (delta, reward) from (s, a).
 
     Design choices:
     - No kinematic integration layer: integrating inside the model forces the
@@ -15,9 +15,10 @@ class _DynamicsMember(nn.Module):
       collapse on x and x_dot (confirmed by the scatter plot).
     - sin/cos encoding for theta: circular geometry — the pole at +0.2 rad and
       -0.2 rad has symmetric dynamics; raw theta breaks that symmetry for the NN.
-    - Direct delta output in original physical units: simple, debuggable, and
-      avoids the unit-mismatch bugs that arise when mixing normalised NN outputs
-      with raw-unit kinematic integration.
+    - CartPole has exact kinematics for x/theta over one step, so the network
+      learns only the harder velocity deltas. This avoids wasting capacity on
+      an identity-like relationship and keeps the prediction scatter aligned
+      with the y=x reference line.
     - lr=1e-4: 3e-4 caused divergence over long runs with continuous training.
     """
 
@@ -28,6 +29,10 @@ class _DynamicsMember(nn.Module):
         self.state_scale = torch.tensor(
             [4.8, 10.0, 1.0, 10.0], dtype=torch.float32, device=device
         )
+        self.delta_scale = torch.tensor(
+            [1.0, 0.50, 1.0, 0.50], dtype=torch.float32, device=device
+        )
+        self.tau = 0.02
 
         # 5 geometric features + one-hot action
         # [x/4.8, x_dot/10, sin(theta), cos(theta), theta_dot/10] + [a0, a1]
@@ -44,7 +49,7 @@ class _DynamicsMember(nn.Module):
 
         self.lr = 1e-4
         self.optimizer = optim.Adam(self.parameters(), lr=self.lr)
-        self.loss_fn = nn.MSELoss()
+        self.loss_fn = nn.SmoothL1Loss()
 
     def _encode_action(self, a):
         a_long = a.long().view(-1)
@@ -76,7 +81,9 @@ class _DynamicsMember(nn.Module):
         a = torch.tensor([action_seq[-1]], dtype=torch.long, device=self.device)
         with torch.no_grad():
             out = self.forward(s, a).squeeze(0)
-        delta  = out[:4].detach().cpu().numpy()
+        delta = (out[:4] * self.delta_scale).detach().cpu().numpy()
+        delta[0] = self.tau * float(state_seq[-1][1])
+        delta[2] = self.tau * float(state_seq[-1][3])
         reward = float(out[4])
         return delta, reward
 
@@ -91,14 +98,18 @@ class _DynamicsMember(nn.Module):
         action = torch.tensor(
             action_seq[:, -1], dtype=torch.long, device=self.device
         )
-        delta_t  = torch.tensor(delta,  dtype=torch.float32, device=self.device)
+        delta_t = torch.tensor(delta, dtype=torch.float32, device=self.device)
+        delta_t_scaled = delta_t / self.delta_scale
         reward_t = torch.tensor(reward, dtype=torch.float32, device=self.device).unsqueeze(-1)
 
         out = self.forward(state, action)
-        pred_delta  = out[:, :4]
+        pred_velocity_delta_scaled = out[:, [1, 3]]
         pred_reward = out[:, 4:5]
 
-        loss = self.loss_fn(pred_delta, delta_t) + 0.5 * self.loss_fn(pred_reward, reward_t)
+        loss = (
+            self.loss_fn(pred_velocity_delta_scaled, delta_t_scaled[:, [1, 3]])
+            + 0.05 * self.loss_fn(pred_reward, reward_t)
+        )
 
         self.optimizer.zero_grad()
         loss.backward()

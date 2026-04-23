@@ -29,8 +29,9 @@ class RWMModel:
         ready_disagreement=0.04,
         ready_velocity_disagreement=0.03,
         train_every=8,
-        # diagnostics() is called every ~1000 steps; a smaller patience stops drift.
-        freeze_patience=12,
+        # Keep adapting by default; the policy changes the replay distribution
+        # throughout training, so an early frozen snapshot quickly becomes stale.
+        freeze_patience=None,
         max_train_ratio=1.0,
     ):
         self.model = model
@@ -51,7 +52,7 @@ class RWMModel:
         self.ready_disagreement = float(ready_disagreement)
         self.ready_velocity_disagreement = float(ready_velocity_disagreement)
         self.train_every = int(train_every)
-        self.freeze_patience = int(freeze_patience)
+        self.freeze_patience = None if freeze_patience is None else int(freeze_patience)
         self.max_train_ratio = float(max_train_ratio)
         self.store_steps = 0
         self.training_steps = 0
@@ -104,6 +105,19 @@ class RWMModel:
     def _clip_sample_delta(self, delta):
         """Clamp one-step fake dynamics so planning stays local and conservative."""
         return np.clip(np.array(delta, dtype=np.float32), self.delta_low, self.delta_high)
+
+    def _planning_model(self):
+        """Use the live model unless training was explicitly frozen."""
+        return self.best_model if self.training_frozen else self.model
+
+    def _train_ratio(self):
+        """Training updates per real environment transition."""
+        return self.training_steps / max(1, self.store_steps)
+
+    def _cartpole_done(self, s):
+        """Predict CartPole termination from the imagined next observation."""
+        x, _, theta, _ = np.array(s, dtype=np.float32)
+        return bool(abs(x) > 2.4 or abs(theta) > 12.0 * np.pi / 180.0)
 
     def _sample_training_batch(self):
         """Sample a replay batch of short histories ending at real transitions."""
@@ -173,7 +187,7 @@ class RWMModel:
             self.buffer.pop(0)
         self.store_steps += 1
 
-        train_ratio = self.training_steps / max(1, len(self.buffer))
+        train_ratio = self._train_ratio()
 
         if (
             not self.training_frozen
@@ -192,7 +206,7 @@ class RWMModel:
                 self.training_steps += 1
 
                 if self.training_steps % 100 == 0:
-                    train_ratio = self.training_steps / max(1, len(self.buffer))
+                    train_ratio = self._train_ratio()
                     # Flag if loss_ema is rising compared to 500 steps ago.
                     rising = (
                         self._loss_500_ago is not None
@@ -213,13 +227,13 @@ class RWMModel:
                     )
 
         prev_frozen = self.training_frozen
-        if self.training_steps / max(1, len(self.buffer)) >= self.max_train_ratio:
+        if self._train_ratio() >= self.max_train_ratio:
             self.training_frozen = True
         if self.training_frozen and not prev_frozen:
             self._log(
                 "FREEZE",
                 reason="max_train_ratio",
-                train_ratio=f"{self.training_steps / max(1, len(self.buffer)):.3f}",
+                train_ratio=f"{self._train_ratio():.3f}",
                 train_step=self.training_steps,
             )
 
@@ -245,7 +259,7 @@ class RWMModel:
             a = np.random.randint(0, self.model.num_actions)
             s_hist, a_hist = self._build_model_input(idx, action_override=a)
             delta_pred, r_pred, delta_disagreement, reward_disagreement, delta_std_by_dim = (
-                self.best_model.predict_with_uncertainty_by_dim(s_hist, a_hist)
+                self._planning_model().predict_with_uncertainty_by_dim(s_hist, a_hist)
             )
             # Reject if mean disagreement OR either velocity dimension is too uncertain.
             velocity_disagreement = max(float(delta_std_by_dim[1]), float(delta_std_by_dim[3]))
@@ -259,6 +273,7 @@ class RWMModel:
                 delta_pred = self._clip_sample_delta(delta_pred)
                 s_next = self._clip_sample_obs(np.array(s) + np.array(delta_pred, dtype=np.float32))
                 r_pred = float(np.clip(r_pred, 0.0, 1.0))
+                done_pred = self._cartpole_done(s_next)
 
                 # Log a sample-rate summary every 50 accepted+exhausted calls.
                 if (self._sc_accepted + self._sc_exhausted) % 50 == 0:
@@ -270,11 +285,11 @@ class RWMModel:
                         rej_vel_dis=self._sc_rej_vel,
                         exhausted=self._sc_exhausted,
                         accept_rate=f"{self._sc_accepted / max(1, self._sc_total):.3f}",
-                        thr_mean={self.ready_disagreement},
-                        thr_vel={self.ready_velocity_disagreement},
+                        thr_mean=f"{self.ready_disagreement:.4f}",
+                        thr_vel=f"{self.ready_velocity_disagreement:.4f}",
                     )
 
-                return tuple(float(v) for v in s), a, tuple(float(v) for v in s_next), r_pred
+                return tuple(float(v) for v in s), a, tuple(float(v) for v in s_next), r_pred, done_pred
             elif not mean_ok:
                 self._sc_rej_mean += 1
             else:
@@ -304,7 +319,7 @@ class RWMModel:
         return ramp
 
     def ready(self):
-        """Model is ready when the best saved model has good prediction quality."""
+        """Model is ready when recent diagnostics show good prediction quality."""
         if len(self.buffer) < self.min_samples:
             return False
         if self.training_steps < 50:
@@ -329,7 +344,7 @@ class RWMModel:
             s, a, delta_true, r_true, _ = self.buffer[idx]
             s_hist, a_hist = self._build_model_input(idx)
             delta_pred, r_pred, delta_disagreement, reward_disagreement, delta_std_by_dim = (
-                self.model.predict_with_uncertainty_by_dim(s_hist, a_hist)
+                self._planning_model().predict_with_uncertainty_by_dim(s_hist, a_hist)
             )
             delta_pred = np.array(delta_pred, dtype=np.float32)
             s_next_true = self._format_obs(s + delta_true)
@@ -346,7 +361,7 @@ class RWMModel:
         self.last_diag = {
             "buffer_size": len(self.buffer),
             "training_steps": self.training_steps,
-            "train_ratio": float(self.training_steps / max(1, len(self.buffer))),
+            "train_ratio": float(self._train_ratio()),
             "max_train_ratio": self.max_train_ratio,
             "loss_ema": None if self.loss_ema is None else float(self.loss_ema),
             "delta_mae": float(np.mean(delta_errors)),
@@ -411,6 +426,12 @@ class RWMModel:
         )
 
         self._update_best_model()
+        self.last_diag["best_delta_mae"] = (
+            None if self.best_diag is None else self.best_diag["delta_mae"]
+        )
+        self.last_diag["best_delta_disagreement"] = (
+            None if self.best_diag is None else self.best_diag["delta_disagreement"]
+        )
 
         # Log a readiness transition when the model first becomes usable.
         is_ready = self._diagnostics_ready()
@@ -436,7 +457,7 @@ class RWMModel:
         for idx in indices:
             s, _, delta_true, _, _ = self.buffer[idx]
             s_hist, a_hist = self._build_model_input(idx)
-            delta_pred, _, _, _ = self.model.predict_with_uncertainty(s_hist, a_hist)
+            delta_pred, _, _, _ = self._planning_model().predict_with_uncertainty(s_hist, a_hist)
             pred_next.append(self._format_obs(s + np.array(delta_pred, dtype=np.float32)))
             real_next.append(self._format_obs(s + delta_true))
 
@@ -450,20 +471,31 @@ class RWMModel:
         }
 
     def _diagnostics_ready(self):
-        if self.best_diag is None:
+        if self.last_diag is None:
             self.last_diag = self.diagnostics()
-        if self.best_diag is None:
+        diag = self.last_diag
+        if diag is None:
             return False
 
-        velocity_errors = self.best_diag["delta_mae_by_dim"][1], self.best_diag["delta_mae_by_dim"][3]
+        velocity_errors = diag["delta_mae_by_dim"][1], diag["delta_mae_by_dim"][3]
         return (
-            self.best_diag["delta_mae"] <= self.ready_delta_mae
+            diag["delta_mae"] <= self.ready_delta_mae
             and max(velocity_errors) <= self.ready_velocity_mae
-            and self.best_diag["delta_disagreement"] <= self.ready_disagreement
+            and diag["delta_disagreement"] <= self.ready_disagreement
         )
 
     def _update_best_model(self):
         if self.last_diag is None:
+            return
+        if self.freeze_patience is None:
+            self.best_score = (
+                self.last_diag["delta_mae"]
+                + 0.5 * self.last_diag["delta_disagreement"]
+                + 0.1 * self.last_diag["reward_mae"]
+            )
+            self.best_diag = dict(self.last_diag)
+            self.best_model.load_exported_state(self.model.export_state())
+            self.no_improve_count = 0
             return
         # Once frozen, keep using the best snapshot — no more rollbacks or logging.
         if self.training_frozen:
@@ -481,7 +513,7 @@ class RWMModel:
             self.best_diag = dict(self.last_diag)
             self.best_model.load_exported_state(self.model.export_state())
             self.no_improve_count = 0
-            self.training_frozen = self.training_steps / max(1, len(self.buffer)) >= self.max_train_ratio
+            self.training_frozen = self._train_ratio() >= self.max_train_ratio
             self._log(
                 "BEST_MODEL",
                 new_score=f"{score:.5f}",

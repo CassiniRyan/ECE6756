@@ -59,7 +59,7 @@ def main():
         # Neural world model used by the reactive world-model planner.
         wm = WorldModel(state_dim=4, action_dim=1, num_actions=env.action_space.n, device=device)
         model = RWMModel(wm)
-        planning_steps = 1
+        planning_steps = 4
 
     agent = Agent(env, model=model, planning_steps=planning_steps, bins_per_dim=bins_per_dim)
 

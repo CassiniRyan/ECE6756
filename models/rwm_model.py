@@ -24,8 +24,8 @@ class RWMModel:
         min_samples=800,
         retrain_batches=2,
         batch_size=64,
-        ready_delta_mae=0.36,
-        ready_velocity_mae=0.60,
+        ready_delta_mae=0.12,
+        ready_velocity_mae=0.30,
         ready_disagreement=0.04,
         ready_velocity_disagreement=0.03,
         train_every=8,
@@ -272,7 +272,9 @@ class RWMModel:
                 self._sc_accepted += 1
                 delta_pred = self._clip_sample_delta(delta_pred)
                 s_next = self._clip_sample_obs(np.array(s) + np.array(delta_pred, dtype=np.float32))
-                r_pred = float(np.clip(r_pred, 0.0, 1.0))
+                # CartPole gives reward 1.0 for each transition, including the
+                # terminal transition. Avoid injecting reward-head noise into Q.
+                r_pred = 1.0
                 done_pred = self._cartpole_done(s_next)
 
                 # Log a sample-rate summary every 50 accepted+exhausted calls.
@@ -312,10 +314,10 @@ class RWMModel:
         """Ramp planning in linearly once the model is ready, capped at 1.0."""
         if not self._diagnostics_ready():
             return 0.0
-        # Warm up over 20k steps after the model first becomes ready.
+        # The model is now accurate enough to use quickly after readiness.
         if not hasattr(self, "_planning_start_step"):
             self._planning_start_step = step
-        ramp = min(1.0, (step - self._planning_start_step) / 20000.0)
+        ramp = min(1.0, (step - self._planning_start_step) / 2000.0)
         return ramp
 
     def ready(self):

@@ -294,8 +294,14 @@ class RWMModel:
         raise Exception("World model uncertainty too high for planning sample")
 
     def planning_ratio(self, step):
-        """Disable planning while we monitor world-model learning in isolation."""
-        return 0.0
+        """Ramp planning in linearly once the model is ready, capped at 1.0."""
+        if not self._diagnostics_ready():
+            return 0.0
+        # Warm up over 20k steps after the model first becomes ready.
+        if not hasattr(self, "_planning_start_step"):
+            self._planning_start_step = step
+        ramp = min(1.0, (step - self._planning_start_step) / 20000.0)
+        return ramp
 
     def ready(self):
         """Model is ready when the best saved model has good prediction quality."""

@@ -13,6 +13,8 @@ class Agent:
         self.disc = Discretizer(bins_per_dim=bins_per_dim)
         self.q = QLearning(env.action_space.n, bins_per_dim=bins_per_dim)
         self.model = model
+        if self.model is not None and hasattr(self.model, "set_discretizer"):
+            self.model.set_discretizer(self.disc)
         self.planning_steps = planning_steps
         self.planning_budget = 0.0
         self.global_step = 0  # Total number of environment steps taken.
@@ -39,6 +41,15 @@ class Agent:
             while not done:
                 # Select an action using the current Q-table.
                 a = self.q.select_action(s, self.env.action_space.n)
+                if (
+                    self.model is not None
+                    and hasattr(self.model, "select_action")
+                    and self.model.ready()
+                ):
+                    try:
+                        a = self.model.select_action(obs, a, self.q, self.disc)
+                    except Exception:
+                        pass
                 obs_next, r, term, trunc, _ = self.env.step(a)
                 done = term or trunc
                 s_next = self.disc.discretize(obs_next)
@@ -53,7 +64,7 @@ class Agent:
                         self.model.store(obs, a, obs_next, r, done)
                     else:
                         # Tabular models only need discretized state ids.
-                        self.model.store(s, a, s_next, r)
+                        self.model.store(s, a, s_next, r, done)
 
                 # Optionally perform additional model-based planning updates.
                 ratio = self.planning_ratio(self.global_step)
@@ -66,20 +77,23 @@ class Agent:
                         self.planning_budget -= model_updates
                         for _ in range(model_updates):
                             try:
-                                sample = self.model.sample()
-                                if len(sample) == 5:
-                                    s_m, a_m, s_next_m, r_m, done_m = sample
+                                if hasattr(self.model, "apply_planning_update"):
+                                    self.model.apply_planning_update(self.q, self.disc)
                                 else:
-                                    s_m, a_m, s_next_m, r_m = sample
-                                    done_m = False
+                                    sample = self.model.sample()
+                                    if len(sample) == 5:
+                                        s_m, a_m, s_next_m, r_m, done_m = sample
+                                    else:
+                                        s_m, a_m, s_next_m, r_m = sample
+                                        done_m = False
 
-                                if getattr(self.model, "returns_continuous", False):
-                                    s_m_d = self.disc.discretize(s_m)
-                                    s_next_m_d = self.disc.discretize(s_next_m)
-                                else:
-                                    s_m_d, s_next_m_d = s_m, s_next_m
+                                    if getattr(self.model, "returns_continuous", False):
+                                        s_m_d = self.disc.discretize(s_m)
+                                        s_next_m_d = self.disc.discretize(s_next_m)
+                                    else:
+                                        s_m_d, s_next_m_d = s_m, s_next_m
 
-                                self.q.update(s_m_d, a_m, r_m, s_next_m_d, done=done_m)
+                                    self.q.update(s_m_d, a_m, r_m, s_next_m_d, done=done_m)
 
                                 if hasattr(self.model, "_plan_count"):
                                     self.model._plan_count += 1
@@ -98,20 +112,25 @@ class Agent:
                         diag = self.model.diagnostics()
                         if diag is not None and "delta_mae_by_dim" in diag:
                             delta_dims = ", ".join(f"{v:.4f}" for v in diag["delta_mae_by_dim"])
+                            bin_acc = diag.get("discrete_bin_accuracy")
+                            bin_acc_text = "None" if bin_acc is None else f"{bin_acc:.3f}"
                             print(
                                 f"[Step {self.global_step}] ready={model_ready} "
-                                f"ratio={ratio:.3f} "
+                                f"plan_ratio={ratio:.3f} "
                                 f"buf={diag['buffer_size']} "
                                 f"train={diag['training_steps']} "
-                                f"loss={diag['loss_ema']:.4f} "
+                                f"train_ratio={diag.get('train_ratio', float('nan')):.3f} "
+                                f"frozen={diag.get('training_frozen', False)} "
+                                f"loss={diag['loss_ema']:.3e} "
                                 f"mae={diag['delta_mae']:.4f} [{delta_dims}] "
+                                f"bin_acc={bin_acc_text} "
                                 f"dis={diag['delta_disagreement']:.4f} "
                                 f"vel_dis={diag.get('velocity_disagreement', float('nan')):.4f}"
                             )
                         elif diag is not None:
                             print(
                                 f"[Step {self.global_step}] ready={model_ready} "
-                                f"ratio={ratio:.3f} "
+                                f"plan_ratio={ratio:.3f} "
                                 f"buf={diag.get('buffer', '')} "
                                 f"mse={diag.get('mse', '')} "
                                 f"mae={diag.get('delta_mae', '')} "
@@ -121,18 +140,18 @@ class Agent:
                         else:
                             print(
                                 f"[Step {self.global_step}] ready={model_ready} "
-                                f"ratio={ratio:.3f}"
+                                f"plan_ratio={ratio:.3f}"
                             )
                     else:
                         print(
                             f"[Step {self.global_step}] ready={model_ready} "
-                            f"ratio={ratio:.3f}"
+                            f"plan_ratio={ratio:.3f}"
                         )
 
             rewards.append(total)
             self.q.decay()
 
-            if self.log_name and (ep + 1) % 100 == 0:
+            if self.log_name:
                 self._flush_log(rewards, ep + 1)
 
             if ep % 100 == 0:
@@ -143,10 +162,13 @@ class Agent:
         return rewards
 
     def _flush_log(self, rewards, ep):
-        import json, os
+        import json, os, shutil
         os.makedirs("logs", exist_ok=True)
         with open(f"logs/{self.log_name}.json", "w") as f:
             json.dump({"algo": self.log_name, "episodes": ep, "rewards": rewards}, f)
+        if self.log_name in ("rwm-q", "rwm-predict") and os.path.exists("debug/rwm_debug.log"):
+            os.makedirs("logs/debug", exist_ok=True)
+            shutil.copy2("debug/rwm_debug.log", f"logs/debug/{self.log_name}_rwm_debug.log")
 
     def save(self, path):
         """Save the current Q-table to a NumPy .npy file."""

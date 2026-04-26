@@ -5,15 +5,15 @@ from collections import defaultdict
 class TabularModel:
     """Simple memory-based model of environment transitions."""
     def __init__(self, max_per_state=8):
-        # (s, a) -> list of (s_next, r)
+        # (s, a) -> list of (s_next, r, done)
         self.memory = defaultdict(list)
 
         # max transitions per (s,a)
         self.max_per_state = max_per_state
 
-    def store(self, s, a, s_next, r):
+    def store(self, s, a, s_next, r, done=False):
         """Store a transition for a discrete state-action pair."""
-        self.memory[(s, a)].append((s_next, r))
+        self.memory[(s, a)].append((s_next, r, bool(done)))
 
         # limit memory size per (s,a)
         if len(self.memory[(s, a)]) > self.max_per_state:
@@ -28,9 +28,9 @@ class TabularModel:
             raise Exception("Model memory empty")
 
         s, a = random.choice(valid_keys)
-        s_next, r = random.choice(self.memory[(s, a)])
+        s_next, r, done = random.choice(self.memory[(s, a)])
 
-        return s, a, s_next, r
+        return s, a, s_next, r, done
 
     def planning_ratio(self, step):
         """Classic tabular Dyna can use planning immediately once samples exist."""

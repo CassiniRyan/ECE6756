@@ -22,10 +22,11 @@ class _DynamicsMember(nn.Module):
     - lr=1e-4: 3e-4 caused divergence over long runs with continuous training.
     """
 
-    def __init__(self, state_dim, num_actions, device="cpu"):
+    def __init__(self, state_dim, num_actions, device="cpu", history_horizon=4):
         super().__init__()
         self.device = device
         self.num_actions = num_actions
+        self.history_horizon = int(history_horizon)
         self.state_scale = torch.tensor(
             [4.8, 10.0, 1.0, 10.0], dtype=torch.float32, device=device
         )
@@ -34,9 +35,10 @@ class _DynamicsMember(nn.Module):
         )
         self.tau = 0.02
 
-        # 5 geometric features + one-hot action
-        # [x/4.8, x_dot/10, sin(theta), cos(theta), theta_dot/10] + [a0, a1]
-        in_dim = 5 + num_actions
+        # Per step: [x/4.8, x_dot/10, sin(theta), cos(theta), theta_dot/10]
+        # plus one-hot action. The flattened history lets the NN infer short
+        # motion trends instead of depending on only the latest observation.
+        in_dim = self.history_horizon * (5 + num_actions)
         self.net = nn.Sequential(
             nn.Linear(in_dim, 128),
             nn.ReLU(),
@@ -67,18 +69,21 @@ class _DynamicsMember(nn.Module):
         th_dot = state[:, 3:4] / self.state_scale[3]
         return torch.cat([x, x_dot, torch.sin(theta), torch.cos(theta), th_dot], dim=-1)
 
-    def forward(self, state, action):
-        feat = self._features(state)
-        a_enc = self._encode_action(action)
-        return self.net(torch.cat([feat, a_enc], dim=-1))
+    def forward(self, state_seq, action_seq):
+        batch_size, horizon, _ = state_seq.shape
+        state_flat = state_seq.reshape(batch_size * horizon, -1)
+        action_flat = action_seq.reshape(batch_size * horizon)
+        feat = self._features(state_flat)
+        a_enc = self._encode_action(action_flat)
+        return self.net(torch.cat([feat, a_enc], dim=-1).reshape(batch_size, -1))
 
     def predict(self, state_seq, action_seq):
-        """state_seq: [H, state_dim], action_seq: [H]  (H=history_horizon, currently 1)"""
+        """state_seq: [H, state_dim], action_seq: [H] where H is history_horizon."""
         self.eval()
         s = torch.tensor(
-            state_seq[-1], dtype=torch.float32, device=self.device
+            state_seq, dtype=torch.float32, device=self.device
         ).unsqueeze(0)
-        a = torch.tensor([action_seq[-1]], dtype=torch.long, device=self.device)
+        a = torch.tensor(action_seq, dtype=torch.long, device=self.device).unsqueeze(0)
         with torch.no_grad():
             out = self.forward(s, a).squeeze(0)
         delta = (out[:4] * self.delta_scale).detach().cpu().numpy()
@@ -91,12 +96,11 @@ class _DynamicsMember(nn.Module):
         self.train()
         state_seq, action_seq, delta, reward = batch
 
-        # Use the most recent state in each sequence (history_horizon may be >1 later)
         state = torch.tensor(
-            state_seq[:, -1, :], dtype=torch.float32, device=self.device
+            state_seq, dtype=torch.float32, device=self.device
         )
         action = torch.tensor(
-            action_seq[:, -1], dtype=torch.long, device=self.device
+            action_seq, dtype=torch.long, device=self.device
         )
         delta_t = torch.tensor(delta, dtype=torch.float32, device=self.device)
         delta_t_scaled = delta_t / self.delta_scale
@@ -125,13 +129,26 @@ class _DynamicsMember(nn.Module):
 class WorldModel:
     """Two-member ensemble — minimum needed for disagreement-based filtering."""
 
-    def __init__(self, state_dim, action_dim, num_actions=2, device="cpu", ensemble_size=2):
+    def __init__(
+        self,
+        state_dim,
+        action_dim,
+        num_actions=2,
+        device="cpu",
+        ensemble_size=2,
+        history_horizon=4,
+    ):
         self.device = device
         self.num_actions = num_actions
         self.ensemble_size = ensemble_size
-        self.history_horizon = 1
+        self.history_horizon = int(history_horizon)
         self.members = [
-            _DynamicsMember(state_dim=state_dim, num_actions=num_actions, device=device)
+            _DynamicsMember(
+                state_dim=state_dim,
+                num_actions=num_actions,
+                device=device,
+                history_horizon=self.history_horizon,
+            )
             for _ in range(ensemble_size)
         ]
 

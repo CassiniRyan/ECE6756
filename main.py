@@ -12,7 +12,7 @@ def parse_args():
     parser.add_argument("--mode", choices=["train", "run"], required=True)
     parser.add_argument(
         "--algo",
-        choices=["q", "dyna-q", "dyna-q-discret", "dyna-q-linear", "rwm-q"],
+        choices=["q", "dyna-q", "dyna-q-discret", "dyna-q-linear", "rwm-q", "rwm-predict"],
         default="q",
     )
     parser.add_argument("--episodes", type=int, default=5000)
@@ -48,8 +48,8 @@ def main():
         model = LinearModel(action_space=env.action_space.n, mse_threshold=0.02)
         planning_steps = 2
 
-    elif args.algo == "rwm-q":
-        from models.rwm_model import RWMModel
+    elif args.algo in ("rwm-q", "rwm-predict"):
+        from models.rwm_model import RWMModel, RWMPredictModel
         from third_party.world_model_torch import WorldModel
 
         import torch
@@ -58,8 +58,9 @@ def main():
 
         # Neural world model used by the reactive world-model planner.
         wm = WorldModel(state_dim=4, action_dim=1, num_actions=env.action_space.n, device=device)
-        model = RWMModel(wm)
-        planning_steps = 4
+        model_cls = RWMPredictModel if args.algo == "rwm-predict" else RWMModel
+        model = model_cls(wm)
+        planning_steps = 1 if args.algo == "rwm-predict" else 3
 
     agent = Agent(env, model=model, planning_steps=planning_steps, bins_per_dim=bins_per_dim, log_name=algo_name)
 
@@ -73,6 +74,9 @@ def main():
 
 ##################################################
             import matplotlib.pyplot as plt
+            import numpy as np
+            debug_dir = "debug"
+            os.makedirs(debug_dir, exist_ok=True)
 
             # Save a quick visual summary after each training run.
             plt.plot(rewards)
@@ -81,14 +85,14 @@ def main():
             plt.title(f"Training Curve ({algo_name})")
             plt.grid()
 
-            plt.savefig(f"{algo_name}_debug.png")  # safe on server
-            print(f"Saved plot -> {algo_name}_debug.png")
+            debug_plot_path = os.path.join(debug_dir, f"{algo_name}_debug.png")
+            plt.savefig(debug_plot_path)  # safe on server
+            print(f"Saved plot -> {debug_plot_path}")
 
             agent.save("q_table.npy")
 
-            # --- Temporary RWM debug plot: real vs predicted next-state values ---
-            # This block is intentionally isolated and easy to remove later.
-            if algo_name == "rwm-q" and model is not None and hasattr(model, "debug_prediction_snapshot"):
+            # --- RWM debug plots: one-step and multi-step real vs predicted values ---
+            if algo_name in ("rwm-q", "rwm-predict") and model is not None and hasattr(model, "debug_prediction_snapshot"):
                 snapshot = model.debug_prediction_snapshot()
                 if snapshot is not None:
                     pred_next = snapshot["pred_next"]
@@ -110,9 +114,60 @@ def main():
                         ax.grid(True, alpha=0.3)
 
                     fig.tight_layout()
-                    fig.savefig("rwm-q_prediction_debug.png")
+                    prediction_debug_path = os.path.join(debug_dir, f"{algo_name}_one_step_prediction_debug.png")
+                    fig.savefig(prediction_debug_path)
                     plt.close(fig)
-                    print("Saved plot -> rwm-q_prediction_debug.png")
+                    print(f"Saved plot -> {prediction_debug_path}")
+
+                if hasattr(model, "multistep_prediction_snapshot"):
+                    multi_snapshot = model.multistep_prediction_snapshot()
+                    if multi_snapshot is not None:
+                        labels = multi_snapshot["labels"]
+                        pred_by_step = multi_snapshot["pred_by_step"]
+                        real_by_step = multi_snapshot["real_by_step"]
+                        mae_by_step = multi_snapshot["mae_by_step"]
+                        bin_acc_by_step = multi_snapshot["bin_acc_by_step"]
+                        rollout_horizon = len(pred_by_step)
+
+                        fig, axes = plt.subplots(2, 3, figsize=(15, 8))
+                        axes = axes.flatten()
+                        final_pred = pred_by_step[-1]
+                        final_real = real_by_step[-1]
+
+                        for i, label in enumerate(labels):
+                            ax = axes[i]
+                            ax.scatter(final_real[:, i], final_pred[:, i], s=12, alpha=0.55)
+                            lo = min(final_real[:, i].min(), final_pred[:, i].min())
+                            hi = max(final_real[:, i].max(), final_pred[:, i].max())
+                            ax.plot([lo, hi], [lo, hi], "r--", linewidth=1)
+                            ax.set_title(f"{rollout_horizon}-step {label}: predicted vs real")
+                            ax.set_xlabel("Real future value")
+                            ax.set_ylabel("Predicted future value")
+                            ax.grid(True, alpha=0.3)
+
+                        steps = list(range(1, rollout_horizon + 1))
+                        axes[4].plot(steps, mae_by_step, marker="o")
+                        axes[4].set_title("Multi-step rollout MAE")
+                        axes[4].set_xlabel("Prediction step")
+                        axes[4].set_ylabel("Mean absolute error")
+                        axes[4].grid(True, alpha=0.3)
+
+                        acc_values = [
+                            np.nan if value is None else value
+                            for value in bin_acc_by_step
+                        ]
+                        axes[5].plot(steps, acc_values, marker="o")
+                        axes[5].set_title("Multi-step Q-bin accuracy")
+                        axes[5].set_xlabel("Prediction step")
+                        axes[5].set_ylabel("Bin accuracy")
+                        axes[5].set_ylim(0.0, 1.05)
+                        axes[5].grid(True, alpha=0.3)
+
+                        fig.tight_layout()
+                        multi_debug_path = os.path.join(debug_dir, f"{algo_name}_multi_step_prediction_debug.png")
+                        fig.savefig(multi_debug_path)
+                        plt.close(fig)
+                        print(f"Saved plot -> {multi_debug_path}")
 ####################################################
 
             agent.save(f"logs/q_table_{algo_name}.npy")

@@ -1,0 +1,315 @@
+# rwm_debug.log — started 2026-04-26 12:31:45
+# Thresholds: ready_delta_mae=0.120  ready_velocity_mae=0.300  ready_disagreement=0.0400  ready_velocity_disagreement=0.0300  use_predicted_reward=False  use_shaped_reward=True  history_horizon=4  freeze_patience=None
+[12:31:46][store=128][DIST_SHIFT] x_ratio=0.423 v_ratio=0.762 th_ratio=0.643 om_ratio=0.866 old_th_std=0.0737 new_th_std=0.0474 buf=128
+[12:31:46][store=128][DIAG] buf=128 train_steps=0 train_ratio=0.000 frozen=False no_improve=0 loss_ema=None delta_mae=0.1225 x_mae=0.0000 v_mae=0.1914 th_mae=0.0000 om_mae=0.2984 mean_dis=0.00465 vel_dis=0.01114 bin_acc=0.727 best_mae=None ready_mae_ok=False ready_vel_ok=True ready_dis_ok=True
+[12:31:47][store=792][TRAIN] train_step=100 loss=6.75853267e-02 loss_ema=1.09767548e-01 loss_RISING=False buffer=792 train_ratio=0.126 frozen=False no_improve=0
+[12:31:48][store=1000][DIST_SHIFT] x_ratio=0.832 v_ratio=0.667 th_ratio=0.882 om_ratio=0.788 old_th_std=0.0910 new_th_std=0.0803 buf=1000
+[12:31:48][store=1000][DIAG] buf=1000 train_steps=152 train_ratio=0.152 frozen=False no_improve=0 loss_ema=5.78663567e-02 delta_mae=0.0169 x_mae=0.0000 v_mae=0.0270 th_mae=0.0000 om_mae=0.0406 mean_dis=0.00592 vel_dis=0.01488 bin_acc=0.938 best_mae=0.1225 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:31:48][store=1000][MODEL_READY] train_steps=152 buf=1000
+[12:31:49][store=1192][TRAIN] train_step=200 loss=2.17103015e-03 loss_ema=2.38340507e-02 loss_RISING=False buffer=1192 train_ratio=0.168 frozen=False no_improve=0
+[12:31:50][store=1385][DECISION_OVERRIDE] total=217 overrides=50 q_action=1 model_action=0 q_score=2.292 model_score=3.255
+[12:31:52][store=1592][TRAIN] train_step=300 loss=2.32736859e-03 loss_ema=4.44399131e-03 loss_RISING=False buffer=1592 train_ratio=0.188 frozen=False no_improve=0
+[12:31:55][store=1978][DECISION_OVERRIDE] total=591 overrides=100 q_action=0 model_action=1 q_score=2.039 model_score=2.479
+[12:31:55][store=1992][TRAIN] train_step=400 loss=1.20221858e-03 loss_ema=1.68078654e-03 loss_RISING=False buffer=1992 train_ratio=0.201 frozen=False no_improve=0
+[12:31:55][store=2000][DIST_SHIFT] x_ratio=8.504 v_ratio=1.729 th_ratio=1.213 om_ratio=0.742 old_th_std=0.0888 new_th_std=0.1077 buf=2000
+[12:31:55][store=2000][DIAG] buf=2000 train_steps=402 train_ratio=0.201 frozen=False no_improve=0 loss_ema=1.65705146e-03 delta_mae=0.0035 x_mae=0.0000 v_mae=0.0080 th_mae=0.0000 om_mae=0.0059 mean_dis=0.00121 vel_dis=0.00323 bin_acc=0.992 best_mae=0.0169 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:31:58][store=2392][TRAIN] train_step=500 loss=8.08707060e-04 loss_ema=1.31756811e-03 loss_RISING=False buffer=2392 train_ratio=0.209 frozen=False no_improve=0
+[12:31:59][store=2458][DECISION_OVERRIDE] total=895 overrides=150 q_action=0 model_action=1 q_score=3.592 model_score=4.164
+[12:32:01][store=2792][TRAIN] train_step=600 loss=1.02006074e-03 loss_ema=1.11804244e-03 loss_RISING=False buffer=2792 train_ratio=0.215 frozen=False no_improve=0
+[12:32:02][store=2887][DECISION_OVERRIDE] total=1197 overrides=200 q_action=1 model_action=0 q_score=0.561 model_score=2.651
+[12:32:03][store=3000][DIST_SHIFT] x_ratio=6.875 v_ratio=1.621 th_ratio=1.203 om_ratio=0.694 old_th_std=0.0885 new_th_std=0.1065 buf=3000
+[12:32:03][store=3000][DIAG] buf=3000 train_steps=652 train_ratio=0.217 frozen=False no_improve=0 loss_ema=1.06187459e-03 delta_mae=0.0012 x_mae=0.0000 v_mae=0.0028 th_mae=0.0000 om_mae=0.0021 mean_dis=0.00076 vel_dis=0.00206 bin_acc=0.992 best_mae=0.0035 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:32:05][store=3192][TRAIN] train_step=700 loss=5.53870865e-04 loss_ema=1.00638092e-03 loss_RISING=False buffer=3192 train_ratio=0.219 frozen=False no_improve=0
+[12:32:06][store=3310][DECISION_OVERRIDE] total=1528 overrides=250 q_action=1 model_action=0 q_score=3.823 model_score=4.224
+[12:32:09][store=3592][TRAIN] train_step=800 loss=6.50816859e-04 loss_ema=8.52168216e-04 loss_RISING=False buffer=3592 train_ratio=0.223 frozen=False no_improve=0
+[12:32:11][store=3798][PREDICT_UPDATE] count=50 horizon=5 updated_actions=2
+[12:32:12][store=3886][DECISION_OVERRIDE] total=1949 overrides=300 q_action=1 model_action=0 q_score=3.588 model_score=4.285
+[12:32:13][store=3992][TRAIN] train_step=900 loss=1.09996891e-03 loss_ema=8.15407478e-04 loss_RISING=False buffer=3992 train_ratio=0.225 frozen=False no_improve=0
+[12:32:13][store=4000][DIST_SHIFT] x_ratio=10.909 v_ratio=2.193 th_ratio=1.338 om_ratio=0.751 old_th_std=0.0866 new_th_std=0.1159 buf=4000
+[12:32:13][store=4000][DIAG] buf=4000 train_steps=902 train_ratio=0.226 frozen=False no_improve=0 loss_ema=8.06160684e-04 delta_mae=0.0008 x_mae=0.0000 v_mae=0.0014 th_mae=0.0000 om_mae=0.0018 mean_dis=0.00073 vel_dis=0.00199 bin_acc=1.000 best_mae=0.0012 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:32:14][store=4123][PREDICT_UPDATE] count=100 horizon=5 updated_actions=2
+[12:32:16][store=4343][DECISION_OVERRIDE] total=2245 overrides=350 q_action=0 model_action=1 q_score=3.606 model_score=4.229
+[12:32:17][store=4387][PREDICT_UPDATE] count=150 horizon=5 updated_actions=2
+[12:32:17][store=4392][TRAIN] train_step=1000 loss=8.31780024e-04 loss_ema=8.04669240e-04 loss_RISING=False buffer=4392 train_ratio=0.228 frozen=False no_improve=0
+[12:32:19][store=4607][PREDICT_UPDATE] count=200 horizon=5 updated_actions=2
+[12:32:21][store=4792][TRAIN] train_step=1100 loss=4.65265999e-04 loss_ema=6.85982484e-04 loss_RISING=False buffer=4792 train_ratio=0.230 frozen=False no_improve=0
+[12:32:21][store=4798][PREDICT_UPDATE] count=250 horizon=5 updated_actions=2
+[12:32:21][store=4811][DECISION_OVERRIDE] total=2583 overrides=400 q_action=1 model_action=0 q_score=3.352 model_score=4.683
+[12:32:23][store=4967][PREDICT_UPDATE] count=300 horizon=5 updated_actions=2
+[12:32:24][store=5000][DIST_SHIFT] x_ratio=4.662 v_ratio=1.545 th_ratio=1.121 om_ratio=0.742 old_th_std=0.0926 new_th_std=0.1038 buf=5000
+[12:32:24][store=5000][DIAG] buf=5000 train_steps=1152 train_ratio=0.230 frozen=False no_improve=0 loss_ema=6.54566838e-04 delta_mae=0.0008 x_mae=0.0000 v_mae=0.0013 th_mae=0.0000 om_mae=0.0018 mean_dis=0.00065 vel_dis=0.00174 bin_acc=0.992 best_mae=0.0008 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:32:25][store=5117][PREDICT_UPDATE] count=350 horizon=5 updated_actions=2
+[12:32:26][store=5192][TRAIN] train_step=1200 loss=7.01143683e-04 loss_ema=6.30670063e-04 loss_RISING=False buffer=5192 train_ratio=0.231 frozen=False no_improve=0
+[12:32:27][store=5252][DECISION_OVERRIDE] total=2915 overrides=450 q_action=1 model_action=0 q_score=4.844 model_score=5.485
+[12:32:27][store=5254][PREDICT_UPDATE] count=400 horizon=5 updated_actions=2
+[12:32:28][store=5388][PREDICT_UPDATE] count=450 horizon=5 updated_actions=2
+[12:32:30][store=5530][PREDICT_UPDATE] count=500 horizon=5 updated_actions=2
+[12:32:31][store=5592][TRAIN] train_step=1300 loss=4.55077534e-04 loss_ema=5.21822171e-04 loss_RISING=False buffer=5592 train_ratio=0.232 frozen=False no_improve=0
+[12:32:31][store=5651][PREDICT_UPDATE] count=550 horizon=5 updated_actions=2
+[12:32:32][store=5659][DECISION_OVERRIDE] total=3199 overrides=500 q_action=0 model_action=1 q_score=1.518 model_score=2.585
+[12:32:33][store=5770][PREDICT_UPDATE] count=600 horizon=5 updated_actions=2
+[12:32:34][store=5876][PREDICT_UPDATE] count=650 horizon=5 updated_actions=2
+[12:32:36][store=5983][PREDICT_UPDATE] count=700 horizon=5 updated_actions=2
+[12:32:36][store=5992][TRAIN] train_step=1400 loss=4.51682427e-04 loss_ema=4.90693530e-04 loss_RISING=False buffer=5992 train_ratio=0.234 frozen=False no_improve=0
+[12:32:36][store=6000][DIST_SHIFT] x_ratio=2.540 v_ratio=1.568 th_ratio=1.196 om_ratio=0.749 old_th_std=0.1008 new_th_std=0.1206 buf=6000
+[12:32:36][store=6000][DIAG] buf=6000 train_steps=1402 train_ratio=0.234 frozen=False no_improve=0 loss_ema=4.92485411e-04 delta_mae=0.0007 x_mae=0.0000 v_mae=0.0011 th_mae=0.0000 om_mae=0.0017 mean_dis=0.00055 vel_dis=0.00153 bin_acc=1.000 best_mae=0.0008 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:32:36][store=6017][DECISION_OVERRIDE] total=3444 overrides=550 q_action=0 model_action=1 q_score=1.231 model_score=3.051
+[12:32:37][store=6085][PREDICT_UPDATE] count=750 horizon=5 updated_actions=2
+[12:32:38][store=6191][PREDICT_UPDATE] count=800 horizon=5 updated_actions=2
+[12:32:40][store=6295][PREDICT_UPDATE] count=850 horizon=5 updated_actions=2
+[12:32:41][store=6392][TRAIN] train_step=1500 loss=2.65188355e-04 loss_ema=4.16355944e-04 loss_RISING=False buffer=6392 train_ratio=0.235 frozen=False no_improve=0
+[12:32:41][store=6395][PREDICT_UPDATE] count=900 horizon=5 updated_actions=2
+[12:32:41][store=6407][DECISION_OVERRIDE] total=3724 overrides=600 q_action=1 model_action=0 q_score=3.618 model_score=4.073
+[12:32:42][store=6495][PREDICT_UPDATE] count=950 horizon=5 updated_actions=2
+[12:32:44][store=6597][PREDICT_UPDATE] count=1000 horizon=5 updated_actions=2
+[12:32:45][store=6703][PREDICT_UPDATE] count=1050 horizon=5 updated_actions=2
+[12:32:46][store=6792][TRAIN] train_step=1600 loss=3.93563954e-04 loss_ema=3.39649648e-04 loss_RISING=False buffer=6792 train_ratio=0.236 frozen=False no_improve=0
+[12:32:46][store=6811][PREDICT_UPDATE] count=1100 horizon=5 updated_actions=2
+[12:32:46][store=6830][DECISION_OVERRIDE] total=3995 overrides=650 q_action=0 model_action=1 q_score=4.378 model_score=5.156
+[12:32:48][store=6915][PREDICT_UPDATE] count=1150 horizon=5 updated_actions=2
+[12:32:49][store=7000][DIST_SHIFT] x_ratio=2.688 v_ratio=1.533 th_ratio=1.157 om_ratio=0.749 old_th_std=0.1032 new_th_std=0.1195 buf=7000
+[12:32:49][store=7000][DIAG] buf=7000 train_steps=1652 train_ratio=0.236 frozen=False no_improve=0 loss_ema=3.28835689e-04 delta_mae=0.0006 x_mae=0.0000 v_mae=0.0010 th_mae=0.0000 om_mae=0.0014 mean_dis=0.00052 vel_dis=0.00148 bin_acc=1.000 best_mae=0.0007 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:32:49][store=7017][PREDICT_UPDATE] count=1200 horizon=5 updated_actions=2
+[12:32:50][store=7123][PREDICT_UPDATE] count=1250 horizon=5 updated_actions=2
+[12:32:51][store=7192][TRAIN] train_step=1700 loss=1.78473601e-04 loss_ema=2.95227478e-04 loss_RISING=False buffer=7192 train_ratio=0.236 frozen=False no_improve=0
+[12:32:52][store=7231][PREDICT_UPDATE] count=1300 horizon=5 updated_actions=2
+[12:32:52][store=7278][DECISION_OVERRIDE] total=4305 overrides=700 q_action=1 model_action=0 q_score=0.719 model_score=3.349
+[12:32:53][store=7333][PREDICT_UPDATE] count=1350 horizon=5 updated_actions=2
+[12:32:55][store=7439][PREDICT_UPDATE] count=1400 horizon=5 updated_actions=2
+[12:32:56][store=7543][PREDICT_UPDATE] count=1450 horizon=5 updated_actions=2
+[12:32:57][store=7592][TRAIN] train_step=1800 loss=2.19294219e-04 loss_ema=2.34885147e-04 loss_RISING=False buffer=7592 train_ratio=0.237 frozen=False no_improve=0
+[12:32:57][store=7647][PREDICT_UPDATE] count=1500 horizon=5 updated_actions=2
+[12:32:58][store=7667][DECISION_OVERRIDE] total=4602 overrides=750 q_action=0 model_action=1 q_score=5.297 model_score=5.832
+[12:32:59][store=7763][PREDICT_UPDATE] count=1550 horizon=5 updated_actions=2
+[12:33:00][store=7871][PREDICT_UPDATE] count=1600 horizon=5 updated_actions=2
+[12:33:02][store=7973][PREDICT_UPDATE] count=1650 horizon=5 updated_actions=2
+[12:33:02][store=7992][TRAIN] train_step=1900 loss=6.35359957e-05 loss_ema=1.74482376e-04 loss_RISING=False buffer=7992 train_ratio=0.238 frozen=False no_improve=0
+[12:33:02][store=8000][DIST_SHIFT] x_ratio=1.583 v_ratio=1.260 th_ratio=1.083 om_ratio=0.788 old_th_std=0.1076 new_th_std=0.1166 buf=8000
+[12:33:02][store=8000][DIAG] buf=8000 train_steps=1902 train_ratio=0.238 frozen=False no_improve=0 loss_ema=1.70777763e-04 delta_mae=0.0006 x_mae=0.0000 v_mae=0.0011 th_mae=0.0000 om_mae=0.0013 mean_dis=0.00048 vel_dis=0.00135 bin_acc=1.000 best_mae=0.0006 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:33:03][store=8044][DECISION_OVERRIDE] total=4875 overrides=800 q_action=0 model_action=1 q_score=4.849 model_score=6.115
+[12:33:03][store=8075][PREDICT_UPDATE] count=1700 horizon=5 updated_actions=2
+[12:33:05][store=8181][PREDICT_UPDATE] count=1750 horizon=5 updated_actions=2
+[12:33:06][store=8287][PREDICT_UPDATE] count=1800 horizon=5 updated_actions=2
+[12:33:07][store=8391][PREDICT_UPDATE] count=1850 horizon=5 updated_actions=2
+[12:33:07][store=8392][TRAIN] train_step=2000 loss=4.83449458e-05 loss_ema=1.54296983e-04 loss_RISING=False buffer=8392 train_ratio=0.238 frozen=False no_improve=0
+[12:33:08][store=8493][PREDICT_UPDATE] count=1900 horizon=5 updated_actions=2
+[12:33:09][store=8522][DECISION_OVERRIDE] total=5211 overrides=850 q_action=0 model_action=1 q_score=0.826 model_score=3.607
+[12:33:10][store=8599][PREDICT_UPDATE] count=1950 horizon=5 updated_actions=2
+[12:33:11][store=8703][PREDICT_UPDATE] count=2000 horizon=5 updated_actions=2
+[12:33:13][store=8792][TRAIN] train_step=2100 loss=5.30397538e-05 loss_ema=1.14925748e-04 loss_RISING=False buffer=8792 train_ratio=0.239 frozen=False no_improve=0
+[12:33:13][store=8807][PREDICT_UPDATE] count=2050 horizon=5 updated_actions=2
+[12:33:14][store=8911][PREDICT_UPDATE] count=2100 horizon=5 updated_actions=2
+[12:33:14][store=8917][DECISION_OVERRIDE] total=5528 overrides=900 q_action=0 model_action=1 q_score=5.841 model_score=6.700
+[12:33:16][store=9000][DIST_SHIFT] x_ratio=1.706 v_ratio=1.137 th_ratio=0.986 om_ratio=0.779 old_th_std=0.1072 new_th_std=0.1057 buf=9000
+[12:33:16][store=9000][DIAG] buf=9000 train_steps=2152 train_ratio=0.239 frozen=False no_improve=0 loss_ema=1.07861254e-04 delta_mae=0.0005 x_mae=0.0000 v_mae=0.0009 th_mae=0.0000 om_mae=0.0010 mean_dis=0.00047 vel_dis=0.00132 bin_acc=0.992 best_mae=0.0006 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:33:16][store=9011][PREDICT_UPDATE] count=2150 horizon=5 updated_actions=2
+[12:33:17][store=9113][PREDICT_UPDATE] count=2200 horizon=5 updated_actions=2
+[12:33:18][store=9192][TRAIN] train_step=2200 loss=6.06220510e-05 loss_ema=1.15974817e-04 loss_RISING=False buffer=9192 train_ratio=0.239 frozen=False no_improve=0
+[12:33:18][store=9217][PREDICT_UPDATE] count=2250 horizon=5 updated_actions=2
+[12:33:20][store=9321][PREDICT_UPDATE] count=2300 horizon=5 updated_actions=2
+[12:33:20][store=9375][DECISION_OVERRIDE] total=5836 overrides=950 q_action=0 model_action=1 q_score=6.814 model_score=7.576
+[12:33:21][store=9423][PREDICT_UPDATE] count=2350 horizon=5 updated_actions=2
+[12:33:23][store=9525][PREDICT_UPDATE] count=2400 horizon=5 updated_actions=2
+[12:33:23][store=9592][TRAIN] train_step=2300 loss=2.24528369e-04 loss_ema=9.22003361e-05 loss_RISING=False buffer=9592 train_ratio=0.240 frozen=False no_improve=0
+[12:33:24][store=9627][PREDICT_UPDATE] count=2450 horizon=5 updated_actions=2
+[12:33:25][store=9735][PREDICT_UPDATE] count=2500 horizon=5 updated_actions=2
+[12:33:26][store=9839][PREDICT_UPDATE] count=2550 horizon=5 updated_actions=2
+[12:33:27][store=9862][DECISION_OVERRIDE] total=6170 overrides=1000 q_action=0 model_action=1 q_score=3.636 model_score=5.604
+[12:33:28][store=9945][PREDICT_UPDATE] count=2600 horizon=5 updated_actions=2
+[12:33:28][store=9992][TRAIN] train_step=2400 loss=2.34941390e-05 loss_ema=6.53097513e-05 loss_RISING=False buffer=9992 train_ratio=0.240 frozen=False no_improve=0
+[12:33:29][store=10000][DIST_SHIFT] x_ratio=1.858 v_ratio=1.117 th_ratio=0.921 om_ratio=0.785 old_th_std=0.1084 new_th_std=0.0998 buf=10000
+[12:33:29][store=10000][DIAG] buf=10000 train_steps=2402 train_ratio=0.240 frozen=False no_improve=0 loss_ema=6.41706677e-05 delta_mae=0.0004 x_mae=0.0000 v_mae=0.0008 th_mae=0.0000 om_mae=0.0010 mean_dis=0.00039 vel_dis=0.00109 bin_acc=1.000 best_mae=0.0005 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:33:29][store=10051][PREDICT_UPDATE] count=2650 horizon=5 updated_actions=2
+[12:33:31][store=10153][PREDICT_UPDATE] count=2700 horizon=5 updated_actions=2
+[12:33:31][store=10196][DECISION_OVERRIDE] total=6429 overrides=1050 q_action=1 model_action=0 q_score=0.899 model_score=4.543
+[12:33:32][store=10257][PREDICT_UPDATE] count=2750 horizon=5 updated_actions=2
+[12:33:34][store=10361][PREDICT_UPDATE] count=2800 horizon=5 updated_actions=2
+[12:33:34][store=10392][TRAIN] train_step=2500 loss=7.22848308e-05 loss_ema=7.60383950e-05 loss_RISING=False buffer=10392 train_ratio=0.241 frozen=False no_improve=0
+[12:33:35][store=10465][PREDICT_UPDATE] count=2850 horizon=5 updated_actions=2
+[12:33:36][store=10571][PREDICT_UPDATE] count=2900 horizon=5 updated_actions=2
+[12:33:37][store=10598][DECISION_OVERRIDE] total=6714 overrides=1100 q_action=0 model_action=1 q_score=5.319 model_score=7.064
+[12:33:38][store=10675][PREDICT_UPDATE] count=2950 horizon=5 updated_actions=2
+[12:33:39][store=10777][PREDICT_UPDATE] count=3000 horizon=5 updated_actions=2
+[12:33:39][store=10792][TRAIN] train_step=2600 loss=2.24080486e-05 loss_ema=6.87342612e-05 loss_RISING=False buffer=10792 train_ratio=0.241 frozen=False no_improve=0
+[12:33:40][store=10881][PREDICT_UPDATE] count=3050 horizon=5 updated_actions=2
+[12:33:41][store=10941][DECISION_OVERRIDE] total=6951 overrides=1150 q_action=1 model_action=0 q_score=5.533 model_score=6.908
+[12:33:42][store=10985][PREDICT_UPDATE] count=3100 horizon=5 updated_actions=2
+[12:33:42][store=11000][DIST_SHIFT] x_ratio=2.230 v_ratio=1.249 th_ratio=0.928 om_ratio=0.804 old_th_std=0.1104 new_th_std=0.1024 buf=11000
+[12:33:42][store=11000][DIAG] buf=11000 train_steps=2652 train_ratio=0.241 frozen=False no_improve=0 loss_ema=6.79830185e-05 delta_mae=0.0004 x_mae=0.0000 v_mae=0.0008 th_mae=0.0000 om_mae=0.0009 mean_dis=0.00042 vel_dis=0.00112 bin_acc=1.000 best_mae=0.0004 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:33:43][store=11087][PREDICT_UPDATE] count=3150 horizon=5 updated_actions=2
+[12:33:45][store=11189][PREDICT_UPDATE] count=3200 horizon=5 updated_actions=2
+[12:33:45][store=11192][TRAIN] train_step=2700 loss=2.59198096e-04 loss_ema=6.75706354e-05 loss_RISING=False buffer=11192 train_ratio=0.241 frozen=False no_improve=0
+[12:33:46][store=11289][PREDICT_UPDATE] count=3250 horizon=5 updated_actions=2
+[12:33:46][store=11341][DECISION_OVERRIDE] total=7233 overrides=1200 q_action=0 model_action=1 q_score=6.507 model_score=7.029
+[12:33:47][store=11393][PREDICT_UPDATE] count=3300 horizon=5 updated_actions=2
+[12:33:48][store=11503][PREDICT_UPDATE] count=3350 horizon=5 updated_actions=2
+[12:33:50][store=11592][TRAIN] train_step=2800 loss=3.13705050e-05 loss_ema=7.13863414e-05 loss_RISING=False buffer=11592 train_ratio=0.242 frozen=False no_improve=0
+[12:33:50][store=11611][PREDICT_UPDATE] count=3400 horizon=5 updated_actions=2
+[12:33:51][store=11715][PREDICT_UPDATE] count=3450 horizon=5 updated_actions=2
+[12:33:52][store=11767][DECISION_OVERRIDE] total=7527 overrides=1250 q_action=1 model_action=0 q_score=0.498 model_score=2.481
+[12:33:53][store=11815][PREDICT_UPDATE] count=3500 horizon=5 updated_actions=2
+[12:33:54][store=11921][PREDICT_UPDATE] count=3550 horizon=5 updated_actions=2
+[12:33:55][store=11992][TRAIN] train_step=2900 loss=5.43598298e-05 loss_ema=6.18847447e-05 loss_RISING=False buffer=11992 train_ratio=0.242 frozen=False no_improve=0
+[12:33:55][store=12000][DIST_SHIFT] x_ratio=2.003 v_ratio=1.210 th_ratio=0.931 om_ratio=0.851 old_th_std=0.1101 new_th_std=0.1025 buf=12000
+[12:33:55][store=12000][DIAG] buf=12000 train_steps=2902 train_ratio=0.242 frozen=False no_improve=0 loss_ema=6.01061095e-05 delta_mae=0.0004 x_mae=0.0000 v_mae=0.0007 th_mae=0.0000 om_mae=0.0008 mean_dis=0.00032 vel_dis=0.00086 bin_acc=0.992 best_mae=0.0004 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:33:55][store=12021][PREDICT_UPDATE] count=3600 horizon=5 updated_actions=2
+[12:33:57][store=12125][PREDICT_UPDATE] count=3650 horizon=5 updated_actions=2
+[12:33:57][store=12166][DECISION_OVERRIDE] total=7816 overrides=1300 q_action=0 model_action=1 q_score=0.485 model_score=2.313
+[12:33:58][store=12229][PREDICT_UPDATE] count=3700 horizon=5 updated_actions=2
+[12:33:59][store=12329][PREDICT_UPDATE] count=3750 horizon=5 updated_actions=2
+[12:34:00][store=12392][TRAIN] train_step=3000 loss=1.86689094e-05 loss_ema=6.85373501e-05 loss_RISING=False buffer=12392 train_ratio=0.242 frozen=False no_improve=0
+[12:34:01][store=12435][PREDICT_UPDATE] count=3800 horizon=5 updated_actions=2
+[12:34:02][store=12539][PREDICT_UPDATE] count=3850 horizon=5 updated_actions=2
+[12:34:03][store=12615][DECISION_OVERRIDE] total=8128 overrides=1350 q_action=1 model_action=0 q_score=5.443 model_score=6.773
+[12:34:03][store=12643][PREDICT_UPDATE] count=3900 horizon=5 updated_actions=2
+[12:34:05][store=12749][PREDICT_UPDATE] count=3950 horizon=5 updated_actions=2
+[12:34:05][store=12792][TRAIN] train_step=3100 loss=1.98419148e-04 loss_ema=6.88563296e-05 loss_RISING=False buffer=12792 train_ratio=0.242 frozen=False no_improve=0
+[12:34:06][store=12853][PREDICT_UPDATE] count=4000 horizon=5 updated_actions=2
+[12:34:08][store=12959][PREDICT_UPDATE] count=4050 horizon=5 updated_actions=2
+[12:34:08][store=13000][DIST_SHIFT] x_ratio=1.693 v_ratio=1.104 th_ratio=0.949 om_ratio=0.856 old_th_std=0.1129 new_th_std=0.1072 buf=13000
+[12:34:08][store=13000][DIAG] buf=13000 train_steps=3152 train_ratio=0.242 frozen=False no_improve=0 loss_ema=6.18411753e-05 delta_mae=0.0004 x_mae=0.0000 v_mae=0.0007 th_mae=0.0000 om_mae=0.0009 mean_dis=0.00041 vel_dis=0.00106 bin_acc=0.992 best_mae=0.0004 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:34:09][store=13031][DECISION_OVERRIDE] total=8451 overrides=1400 q_action=1 model_action=0 q_score=2.877 model_score=4.831
+[12:34:09][store=13065][PREDICT_UPDATE] count=4100 horizon=5 updated_actions=2
+[12:34:11][store=13167][PREDICT_UPDATE] count=4150 horizon=5 updated_actions=2
+[12:34:11][store=13192][TRAIN] train_step=3200 loss=4.65067187e-05 loss_ema=5.61676446e-05 loss_RISING=False buffer=13192 train_ratio=0.243 frozen=False no_improve=0
+[12:34:12][store=13273][PREDICT_UPDATE] count=4200 horizon=5 updated_actions=2
+[12:34:14][store=13379][PREDICT_UPDATE] count=4250 horizon=5 updated_actions=2
+[12:34:14][store=13389][DECISION_OVERRIDE] total=8717 overrides=1450 q_action=0 model_action=1 q_score=5.984 model_score=7.145
+[12:34:15][store=13479][PREDICT_UPDATE] count=4300 horizon=5 updated_actions=2
+[12:34:16][store=13581][PREDICT_UPDATE] count=4350 horizon=5 updated_actions=2
+[12:34:17][store=13592][TRAIN] train_step=3300 loss=2.27970004e-05 loss_ema=5.89109659e-05 loss_RISING=False buffer=13592 train_ratio=0.243 frozen=False no_improve=0
+[12:34:18][store=13681][DECISION_OVERRIDE] total=8949 overrides=1500 q_action=1 model_action=0 q_score=6.814 model_score=7.493
+[12:34:18][store=13685][PREDICT_UPDATE] count=4400 horizon=5 updated_actions=2
+[12:34:19][store=13789][PREDICT_UPDATE] count=4450 horizon=5 updated_actions=2
+[12:34:21][store=13891][PREDICT_UPDATE] count=4500 horizon=5 updated_actions=2
+[12:34:22][store=13992][TRAIN] train_step=3400 loss=1.52347879e-04 loss_ema=6.31757063e-05 loss_RISING=False buffer=13992 train_ratio=0.243 frozen=False no_improve=0
+[12:34:22][store=13993][PREDICT_UPDATE] count=4550 horizon=5 updated_actions=2
+[12:34:22][store=14000][DIST_SHIFT] x_ratio=1.607 v_ratio=1.104 th_ratio=0.921 om_ratio=0.834 old_th_std=0.1127 new_th_std=0.1039 buf=14000
+[12:34:22][store=14000][DIAG] buf=14000 train_steps=3402 train_ratio=0.243 frozen=False no_improve=0 loss_ema=6.22610622e-05 delta_mae=0.0004 x_mae=0.0000 v_mae=0.0007 th_mae=0.0000 om_mae=0.0008 mean_dis=0.00033 vel_dis=0.00090 bin_acc=1.000 best_mae=0.0004 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:34:23][store=14061][DECISION_OVERRIDE] total=9217 overrides=1550 q_action=0 model_action=1 q_score=2.239 model_score=4.449
+[12:34:23][store=14093][PREDICT_UPDATE] count=4600 horizon=5 updated_actions=2
+[12:34:25][store=14193][PREDICT_UPDATE] count=4650 horizon=5 updated_actions=2
+[12:34:26][store=14297][PREDICT_UPDATE] count=4700 horizon=5 updated_actions=2
+[12:34:27][store=14392][TRAIN] train_step=3500 loss=1.65036845e-05 loss_ema=6.08569297e-05 loss_RISING=False buffer=14392 train_ratio=0.243 frozen=False no_improve=0
+[12:34:27][store=14405][PREDICT_UPDATE] count=4750 horizon=5 updated_actions=2
+[12:34:28][store=14449][DECISION_OVERRIDE] total=9460 overrides=1600 q_action=0 model_action=1 q_score=5.511 model_score=7.021
+[12:34:28][store=14517][PREDICT_UPDATE] count=4800 horizon=5 updated_actions=2
+[12:34:30][store=14623][PREDICT_UPDATE] count=4850 horizon=5 updated_actions=2
+[12:34:31][store=14723][PREDICT_UPDATE] count=4900 horizon=5 updated_actions=2
+[12:34:32][store=14792][TRAIN] train_step=3600 loss=1.53774046e-04 loss_ema=5.97846877e-05 loss_RISING=False buffer=14792 train_ratio=0.243 frozen=False no_improve=0
+[12:34:33][store=14825][PREDICT_UPDATE] count=4950 horizon=5 updated_actions=2
+[12:34:33][store=14872][DECISION_OVERRIDE] total=9780 overrides=1650 q_action=0 model_action=1 q_score=5.889 model_score=7.426
+[12:34:34][store=14925][PREDICT_UPDATE] count=5000 horizon=5 updated_actions=2
+[12:34:35][store=15000][DIST_SHIFT] x_ratio=1.473 v_ratio=1.178 th_ratio=0.978 om_ratio=0.841 old_th_std=0.1118 new_th_std=0.1093 buf=15000
+[12:34:35][store=15000][DIAG] buf=15000 train_steps=3652 train_ratio=0.243 frozen=False no_improve=0 loss_ema=4.94516119e-05 delta_mae=0.0003 x_mae=0.0000 v_mae=0.0006 th_mae=0.0000 om_mae=0.0006 mean_dis=0.00030 vel_dis=0.00083 bin_acc=1.000 best_mae=0.0004 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:34:36][store=15029][PREDICT_UPDATE] count=5050 horizon=5 updated_actions=2
+[12:34:37][store=15129][PREDICT_UPDATE] count=5100 horizon=5 updated_actions=2
+[12:34:38][store=15192][TRAIN] train_step=3700 loss=1.67174103e-05 loss_ema=4.39134256e-05 loss_RISING=False buffer=15192 train_ratio=0.244 frozen=False no_improve=0
+[12:34:38][store=15237][PREDICT_UPDATE] count=5150 horizon=5 updated_actions=2
+[12:34:40][store=15320][DECISION_OVERRIDE] total=10130 overrides=1700 q_action=0 model_action=1 q_score=5.199 model_score=5.622
+[12:34:40][store=15339][PREDICT_UPDATE] count=5200 horizon=5 updated_actions=2
+[12:34:41][store=15443][PREDICT_UPDATE] count=5250 horizon=5 updated_actions=2
+[12:34:43][store=15547][PREDICT_UPDATE] count=5300 horizon=5 updated_actions=2
+[12:34:43][store=15592][TRAIN] train_step=3800 loss=1.40624070e-05 loss_ema=5.81299663e-05 loss_RISING=False buffer=15592 train_ratio=0.244 frozen=False no_improve=0
+[12:34:44][store=15649][PREDICT_UPDATE] count=5350 horizon=5 updated_actions=2
+[12:34:45][store=15751][PREDICT_UPDATE] count=5400 horizon=5 updated_actions=2
+[12:34:46][store=15819][DECISION_OVERRIDE] total=10461 overrides=1750 q_action=0 model_action=1 q_score=7.378 model_score=7.730
+[12:34:46][store=15851][PREDICT_UPDATE] count=5450 horizon=5 updated_actions=2
+[12:34:48][store=15957][PREDICT_UPDATE] count=5500 horizon=5 updated_actions=2
+[12:34:48][store=15992][TRAIN] train_step=3900 loss=2.73658470e-05 loss_ema=5.63746928e-05 loss_RISING=False buffer=15992 train_ratio=0.244 frozen=False no_improve=0
+[12:34:48][store=16000][DIST_SHIFT] x_ratio=1.564 v_ratio=1.211 th_ratio=0.998 om_ratio=0.817 old_th_std=0.1116 new_th_std=0.1114 buf=16000
+[12:34:48][store=16000][DIAG] buf=16000 train_steps=3902 train_ratio=0.244 frozen=False no_improve=0 loss_ema=5.48757209e-05 delta_mae=0.0003 x_mae=0.0000 v_mae=0.0006 th_mae=0.0000 om_mae=0.0008 mean_dis=0.00026 vel_dis=0.00071 bin_acc=1.000 best_mae=0.0003 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:34:49][store=16065][PREDICT_UPDATE] count=5550 horizon=5 updated_actions=2
+[12:34:51][store=16158][DECISION_OVERRIDE] total=10723 overrides=1800 q_action=0 model_action=1 q_score=2.877 model_score=3.312
+[12:34:51][store=16165][PREDICT_UPDATE] count=5600 horizon=5 updated_actions=2
+[12:34:52][store=16265][PREDICT_UPDATE] count=5650 horizon=5 updated_actions=2
+[12:34:53][store=16369][PREDICT_UPDATE] count=5700 horizon=5 updated_actions=2
+[12:34:54][store=16392][TRAIN] train_step=4000 loss=2.03552258e-05 loss_ema=5.65310302e-05 loss_RISING=False buffer=16392 train_ratio=0.244 frozen=False no_improve=0
+[12:34:55][store=16469][PREDICT_UPDATE] count=5750 horizon=5 updated_actions=2
+[12:34:55][store=16522][DECISION_OVERRIDE] total=10998 overrides=1850 q_action=1 model_action=0 q_score=3.707 model_score=4.070
+[12:34:56][store=16571][PREDICT_UPDATE] count=5800 horizon=5 updated_actions=2
+[12:34:57][store=16673][PREDICT_UPDATE] count=5850 horizon=5 updated_actions=2
+[12:34:59][store=16781][PREDICT_UPDATE] count=5900 horizon=5 updated_actions=2
+[12:34:59][store=16792][TRAIN] train_step=4100 loss=8.58830481e-06 loss_ema=4.65844165e-05 loss_RISING=False buffer=16792 train_ratio=0.244 frozen=False no_improve=0
+[12:35:00][store=16883][PREDICT_UPDATE] count=5950 horizon=5 updated_actions=2
+[12:35:00][store=16905][DECISION_OVERRIDE] total=11264 overrides=1900 q_action=1 model_action=0 q_score=6.558 model_score=7.705
+[12:35:02][store=16985][PREDICT_UPDATE] count=6000 horizon=5 updated_actions=2
+[12:35:02][store=17000][DIST_SHIFT] x_ratio=1.614 v_ratio=1.238 th_ratio=1.020 om_ratio=0.844 old_th_std=0.1112 new_th_std=0.1135 buf=17000
+[12:35:02][store=17000][DIAG] buf=17000 train_steps=4152 train_ratio=0.244 frozen=False no_improve=0 loss_ema=5.27191918e-05 delta_mae=0.0003 x_mae=0.0000 v_mae=0.0006 th_mae=0.0000 om_mae=0.0008 mean_dis=0.00029 vel_dis=0.00079 bin_acc=1.000 best_mae=0.0003 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:35:03][store=17091][PREDICT_UPDATE] count=6050 horizon=5 updated_actions=2
+[12:35:05][store=17192][TRAIN] train_step=4200 loss=1.22787028e-05 loss_ema=5.72259430e-05 loss_RISING=False buffer=17192 train_ratio=0.244 frozen=False no_improve=0
+[12:35:05][store=17199][PREDICT_UPDATE] count=6100 horizon=5 updated_actions=2
+[12:35:05][store=17252][DECISION_OVERRIDE] total=11526 overrides=1950 q_action=0 model_action=1 q_score=6.245 model_score=7.588
+[12:35:06][store=17301][PREDICT_UPDATE] count=6150 horizon=5 updated_actions=2
+[12:35:07][store=17403][PREDICT_UPDATE] count=6200 horizon=5 updated_actions=2
+[12:35:09][store=17503][PREDICT_UPDATE] count=6250 horizon=5 updated_actions=2
+[12:35:10][store=17580][DECISION_OVERRIDE] total=11770 overrides=2000 q_action=1 model_action=0 q_score=6.393 model_score=7.298
+[12:35:10][store=17592][TRAIN] train_step=4300 loss=2.25041947e-04 loss_ema=5.92760660e-05 loss_RISING=False buffer=17592 train_ratio=0.244 frozen=False no_improve=0
+[12:35:10][store=17609][PREDICT_UPDATE] count=6300 horizon=5 updated_actions=2
+[12:35:11][store=17713][PREDICT_UPDATE] count=6350 horizon=5 updated_actions=2
+[12:35:13][store=17815][PREDICT_UPDATE] count=6400 horizon=5 updated_actions=2
+[12:35:14][store=17917][PREDICT_UPDATE] count=6450 horizon=5 updated_actions=2
+[12:35:15][store=17971][DECISION_OVERRIDE] total=12047 overrides=2050 q_action=0 model_action=1 q_score=3.088 model_score=3.668
+[12:35:15][store=17992][TRAIN] train_step=4400 loss=2.88828564e-05 loss_ema=5.42434213e-05 loss_RISING=False buffer=17992 train_ratio=0.245 frozen=False no_improve=0
+[12:35:15][store=18000][DIST_SHIFT] x_ratio=1.547 v_ratio=1.162 th_ratio=0.977 om_ratio=0.862 old_th_std=0.1102 new_th_std=0.1076 buf=18000
+[12:35:15][store=18000][DIAG] buf=18000 train_steps=4402 train_ratio=0.245 frozen=False no_improve=0 loss_ema=5.50108603e-05 delta_mae=0.0004 x_mae=0.0000 v_mae=0.0007 th_mae=0.0000 om_mae=0.0009 mean_dis=0.00029 vel_dis=0.00082 bin_acc=0.992 best_mae=0.0003 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:35:16][store=18021][PREDICT_UPDATE] count=6500 horizon=5 updated_actions=2
+[12:35:17][store=18127][PREDICT_UPDATE] count=6550 horizon=5 updated_actions=2
+[12:35:18][store=18227][PREDICT_UPDATE] count=6600 horizon=5 updated_actions=2
+[12:35:20][store=18329][PREDICT_UPDATE] count=6650 horizon=5 updated_actions=2
+[12:35:20][store=18392][TRAIN] train_step=4500 loss=2.37424119e-05 loss_ema=4.69004020e-05 loss_RISING=False buffer=18392 train_ratio=0.245 frozen=False no_improve=0
+[12:35:21][store=18422][DECISION_OVERRIDE] total=12383 overrides=2100 q_action=1 model_action=0 q_score=6.720 model_score=7.700
+[12:35:21][store=18429][PREDICT_UPDATE] count=6700 horizon=5 updated_actions=2
+[12:35:23][store=18531][PREDICT_UPDATE] count=6750 horizon=5 updated_actions=2
+[12:35:24][store=18631][PREDICT_UPDATE] count=6800 horizon=5 updated_actions=2
+[12:35:25][store=18731][PREDICT_UPDATE] count=6850 horizon=5 updated_actions=2
+[12:35:26][store=18792][TRAIN] train_step=4600 loss=4.75235129e-05 loss_ema=4.74068947e-05 loss_RISING=False buffer=18792 train_ratio=0.245 frozen=False no_improve=0
+[12:35:27][store=18833][PREDICT_UPDATE] count=6900 horizon=5 updated_actions=2
+[12:35:27][store=18851][DECISION_OVERRIDE] total=12716 overrides=2150 q_action=0 model_action=1 q_score=6.311 model_score=7.157
+[12:35:28][store=18937][PREDICT_UPDATE] count=6950 horizon=5 updated_actions=2
+[12:35:29][store=19000][DIST_SHIFT] x_ratio=1.640 v_ratio=1.115 th_ratio=0.929 om_ratio=0.859 old_th_std=0.1107 new_th_std=0.1029 buf=19000
+[12:35:29][store=19000][DIAG] buf=19000 train_steps=4652 train_ratio=0.245 frozen=False no_improve=0 loss_ema=4.05901539e-05 delta_mae=0.0003 x_mae=0.0000 v_mae=0.0006 th_mae=0.0000 om_mae=0.0008 mean_dis=0.00026 vel_dis=0.00069 bin_acc=1.000 best_mae=0.0004 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:35:29][store=19037][PREDICT_UPDATE] count=7000 horizon=5 updated_actions=2
+[12:35:30][store=19139][PREDICT_UPDATE] count=7050 horizon=5 updated_actions=2
+[12:35:31][store=19192][TRAIN] train_step=4700 loss=1.21897228e-05 loss_ema=3.66662212e-05 loss_RISING=False buffer=19192 train_ratio=0.245 frozen=False no_improve=0
+[12:35:32][store=19245][PREDICT_UPDATE] count=7100 horizon=5 updated_actions=2
+[12:35:33][store=19314][DECISION_OVERRIDE] total=13008 overrides=2200 q_action=1 model_action=0 q_score=1.443 model_score=2.435
+[12:35:33][store=19349][PREDICT_UPDATE] count=7150 horizon=5 updated_actions=2
+[12:35:34][store=19453][PREDICT_UPDATE] count=7200 horizon=5 updated_actions=2
+[12:35:36][store=19553][PREDICT_UPDATE] count=7250 horizon=5 updated_actions=2
+[12:35:36][store=19592][TRAIN] train_step=4800 loss=1.24805142e-05 loss_ema=4.53450792e-05 loss_RISING=False buffer=19592 train_ratio=0.245 frozen=False no_improve=0
+[12:35:37][store=19655][PREDICT_UPDATE] count=7300 horizon=5 updated_actions=2
+[12:35:38][store=19731][DECISION_OVERRIDE] total=13282 overrides=2250 q_action=0 model_action=1 q_score=7.766 model_score=8.268
+[12:35:38][store=19757][PREDICT_UPDATE] count=7350 horizon=5 updated_actions=2
+[12:35:40][store=19857][PREDICT_UPDATE] count=7400 horizon=5 updated_actions=2
+[12:35:41][store=19959][PREDICT_UPDATE] count=7450 horizon=5 updated_actions=2
+[12:35:42][store=19992][TRAIN] train_step=4900 loss=1.43176253e-05 loss_ema=4.30880665e-05 loss_RISING=False buffer=19992 train_ratio=0.245 frozen=False no_improve=0
+[12:35:42][store=20000][DIST_SHIFT] x_ratio=1.660 v_ratio=1.108 th_ratio=0.935 om_ratio=0.855 old_th_std=0.1101 new_th_std=0.1029 buf=20000
+[12:35:42][store=20000][DIAG] buf=20000 train_steps=4902 train_ratio=0.245 frozen=False no_improve=0 loss_ema=4.19590107e-05 delta_mae=0.0004 x_mae=0.0000 v_mae=0.0006 th_mae=0.0000 om_mae=0.0011 mean_dis=0.00037 vel_dis=0.00096 bin_acc=1.000 best_mae=0.0003 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:35:42][store=20007][DECISION_OVERRIDE] total=13513 overrides=2300 q_action=1 model_action=0 q_score=5.754 model_score=6.232
+[12:35:43][store=20059][PREDICT_UPDATE] count=7500 horizon=5 updated_actions=2
+[12:35:44][store=20161][PREDICT_UPDATE] count=7550 horizon=5 updated_actions=2
+[12:35:46][store=20261][PREDICT_UPDATE] count=7600 horizon=5 updated_actions=2
+[12:35:47][store=20356][DECISION_OVERRIDE] total=13784 overrides=2350 q_action=1 model_action=0 q_score=6.075 model_score=6.808
+[12:35:47][store=20361][PREDICT_UPDATE] count=7650 horizon=5 updated_actions=2
+[12:35:47][store=20392][TRAIN] train_step=5000 loss=1.74090983e-05 loss_ema=4.54202472e-05 loss_RISING=False buffer=20000 train_ratio=0.245 frozen=False no_improve=0
+[12:35:48][store=20461][PREDICT_UPDATE] count=7700 horizon=5 updated_actions=2
+[12:35:50][store=20567][PREDICT_UPDATE] count=7750 horizon=5 updated_actions=2
+[12:35:51][store=20673][PREDICT_UPDATE] count=7800 horizon=5 updated_actions=2
+[12:35:52][store=20777][PREDICT_UPDATE] count=7850 horizon=5 updated_actions=2
+[12:35:53][store=20792][TRAIN] train_step=5100 loss=1.24833832e-05 loss_ema=4.68804419e-05 loss_RISING=False buffer=20000 train_ratio=0.245 frozen=False no_improve=0
+[12:35:53][store=20801][DECISION_OVERRIDE] total=14086 overrides=2400 q_action=0 model_action=1 q_score=5.952 model_score=6.670
+[12:35:54][store=20879][PREDICT_UPDATE] count=7900 horizon=5 updated_actions=2
+[12:35:55][store=20979][PREDICT_UPDATE] count=7950 horizon=5 updated_actions=2
+[12:35:56][store=21000][DIST_SHIFT] x_ratio=1.447 v_ratio=0.957 th_ratio=0.857 om_ratio=0.933 old_th_std=0.1190 new_th_std=0.1020 buf=20000
+[12:35:56][store=21000][DIAG] buf=20000 train_steps=5152 train_ratio=0.245 frozen=False no_improve=0 loss_ema=5.08603104e-05 delta_mae=0.0003 x_mae=0.0000 v_mae=0.0006 th_mae=0.0000 om_mae=0.0007 mean_dis=0.00027 vel_dis=0.00070 bin_acc=0.992 best_mae=0.0004 ready_mae_ok=True ready_vel_ok=True ready_dis_ok=True
+[12:35:57][store=21081][PREDICT_UPDATE] count=8000 horizon=5 updated_actions=2
+[12:35:58][store=21185][PREDICT_UPDATE] count=8050 horizon=5 updated_actions=2
+[12:35:58][store=21192][TRAIN] train_step=5200 loss=6.05909881e-05 loss_ema=4.37108400e-05 loss_RISING=False buffer=20000 train_ratio=0.245 frozen=False no_improve=0
+[12:35:59][store=21225][DECISION_OVERRIDE] total=14427 overrides=2450 q_action=1 model_action=0 q_score=2.798 model_score=5.704
+[12:36:00][store=21289][PREDICT_UPDATE] count=8100 horizon=5 updated_actions=2
+[12:36:01][store=21391][PREDICT_UPDATE] count=8150 horizon=5 updated_actions=2
+[12:36:03][store=21495][PREDICT_UPDATE] count=8200 horizon=5 updated_actions=2
+[12:36:03][store=21515][DECISION_OVERRIDE] total=14660 overrides=2500 q_action=0 model_action=1 q_score=7.308 model_score=8.203
+[12:36:04][store=21592][TRAIN] train_step=5300 loss=2.53714952e-05 loss_ema=3.99050669e-05 loss_RISING=False buffer=20000 train_ratio=0.245 frozen=False no_improve=0
+[12:36:04][store=21595][PREDICT_UPDATE] count=8250 horizon=5 updated_actions=2

@@ -1,11 +1,20 @@
-"""Diagnostics and debug helpers for the reactive world model."""
+"""Diagnostics and debug helpers for the reactive world model.
+
+These functions answer the main question behind the final RWM experiments:
+does the learned simulator predict the states that Q-learning will actually
+consume? We therefore track both continuous error and discrete Q-bin accuracy.
+"""
 import random
 
 import numpy as np
 
 
 def diagnostics(rwm, sample_size=128):
-    """Measure one-step prediction error on real stored transitions."""
+    """Measure one-step prediction error on real stored transitions.
+
+    The one-step diagnostic gates whether planning is allowed. Low MAE alone is
+    not enough, so this also records ensemble disagreement and Q-bin accuracy.
+    """
     if len(rwm.buffer) < max(32, sample_size):
         return None
 
@@ -20,6 +29,8 @@ def diagnostics(rwm, sample_size=128):
     discrete_matches = []
 
     for idx in indices:
+        # Compare the model against held-out replay transitions using the exact
+        # state/action history that the model receives during planning.
         s, a, delta_true, r_true, _ = rwm.buffer[idx]
         s_hist, a_hist = rwm._build_model_input(idx)
         delta_pred, r_pred, delta_disagreement, reward_disagreement, delta_std_by_dim = (
@@ -85,7 +96,11 @@ def diagnostics(rwm, sample_size=128):
 
 
 def debug_prediction_snapshot(rwm, sample_size=256):
-    """Collect real-vs-predicted next-state values for the debug scatter plot."""
+    """Collect real-vs-predicted next-state values for the debug scatter plot.
+
+    This produces the one-step y=x plots used to confirm that the neural
+    simulator fits immediate CartPole dynamics.
+    """
     if len(rwm.buffer) < max(16, sample_size):
         return None
 
@@ -108,7 +123,12 @@ def debug_prediction_snapshot(rwm, sample_size=256):
 
 
 def multistep_prediction_snapshot(rwm, sample_size=128, rollout_horizon=5):
-    """Compare model rollouts against real future states using recorded actions."""
+    """Compare model rollouts against real future states using recorded actions.
+
+    This is the stronger final diagnostic. RWM-Predict relies on five-step
+    lookahead, so the debug plot checks whether error stays small as predictions
+    are fed back into the model.
+    """
     if len(rwm.buffer) < max(16, sample_size + rollout_horizon):
         return None
 
@@ -129,6 +149,8 @@ def multistep_prediction_snapshot(rwm, sample_size=128, rollout_horizon=5):
     bin_acc_by_step = []
 
     for idx in indices:
+        # Roll the model forward under the same actions the real episode took.
+        # That isolates simulator error from policy/action-selection changes.
         state_history, action_history = rwm._build_model_input(idx)
         s_roll = np.array(rwm.buffer[idx][0], dtype=np.float32)
 
@@ -180,7 +202,11 @@ def multistep_prediction_snapshot(rwm, sample_size=128, rollout_horizon=5):
 
 
 def _log_distribution_shift(rwm):
-    """Log std-ratio shift between old and new replay-buffer states."""
+    """Log std-ratio shift between old and new replay-buffer states.
+
+    A world model can become stale if the policy starts visiting a different
+    region of state space. This lightweight check makes that drift visible.
+    """
     n = len(rwm.buffer)
     if n < 64:
         return

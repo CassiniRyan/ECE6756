@@ -1,13 +1,22 @@
 
 # main.py: entry point for the CartPole reinforcement learning experiment.
-# It parses CLI arguments, configures the environment, picks the algorithm,
-# initializes the agent, and either trains or runs the learned policy.
+#
+# Purpose:
+# - Keep every algorithm behind the same CLI so training curves are comparable.
+# - Build exactly one environment, one optional planning model, and one Agent.
+# - Save both reward logs and debug plots so the final report can compare
+#   plain Q-learning, Dyna-Q variants, and neural world-model variants.
 import argparse
 from env.gym_cartpole import make_env
 from rl_core.agent import Agent
 
 def parse_args():
-    """Parse command line options for mode, algorithm, episodes, and rendering."""
+    """Parse command line options for mode, algorithm, episodes, and rendering.
+
+    The algorithm names match the JSON log names. That makes evaluation simple:
+    training writes logs/<algo>.json and the plotting script can load them by
+    task name without needing extra metadata.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["train", "run"], required=True)
     parser.add_argument(
@@ -26,10 +35,13 @@ def main():
     env = make_env(render=args.render)
 
     # Normalize the alias so "dyna-q" maps to the discrete/tabular variant.
+    # This keeps the old command working while making the log name explicit.
     algo_name = "dyna-q-discret" if args.algo == "dyna-q" else args.algo
     bins_per_dim = 10
 
     if args.algo == "q":
+        # Baseline: no model, no planning. This tells us what the tabular
+        # learner can do from real CartPole interaction alone.
         model = None
         planning_steps = 0
 
@@ -57,6 +69,10 @@ def main():
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # Neural world model used by the reactive world-model planner.
+        # RWM-Q uses the model as a conservative fake-transition generator.
+        # RWM-Predict additionally uses multi-step predicted stability to guide
+        # action selection and Q targets, which is why it can exploit the good
+        # five-step prediction results from the final experiments.
         wm = WorldModel(state_dim=4, action_dim=1, num_actions=env.action_space.n, device=device)
         model_cls = RWMPredictModel if args.algo == "rwm-predict" else RWMModel
         model = model_cls(wm)
@@ -73,6 +89,9 @@ def main():
             import os
 
 ##################################################
+            # The block below is intentionally report/debug focused. It does not
+            # affect training; it turns the final model state into plots that
+            # show whether the learned simulator is aligned with real rollouts.
             import matplotlib.pyplot as plt
             import numpy as np
             debug_dir = "debug"
@@ -92,6 +111,9 @@ def main():
             agent.save("q_table.npy")
 
             # --- RWM debug plots: one-step and multi-step real vs predicted values ---
+            # One-step plots show whether the neural model fits immediate
+            # dynamics. Multi-step plots are more important for this project
+            # because RWM-Predict uses the model to look several steps ahead.
             if algo_name in ("rwm-q", "rwm-predict") and model is not None and hasattr(model, "debug_prediction_snapshot"):
                 snapshot = model.debug_prediction_snapshot()
                 if snapshot is not None:

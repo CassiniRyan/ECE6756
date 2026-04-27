@@ -1,4 +1,9 @@
 
+"""Tabular Q-learning core shared by all algorithms.
+
+Every experiment eventually updates this same Q-table. The difference between
+algorithms is only where extra transitions or action guidance come from.
+"""
 import numpy as np
 
 class QLearning:
@@ -14,14 +19,23 @@ class QLearning:
         self.epsilon_min = 0.01
 
     def select_action(self, s, action_space):
-        """Choose an action using ε-greedy exploration from the Q-table."""
+        """Choose an action using epsilon-greedy exploration from the Q-table.
+
+        Exploration is shared by every algorithm so model-based methods are
+        compared against the same basic behavior policy.
+        """
         import numpy as np
         if np.random.rand() < self.epsilon:
             return np.random.randint(action_space)
         return int(np.argmax(self.Q[s]))
 
     def update(self, s, a, r, s_next, done=False):
-        """Update a single Q-value using the TD(0) rule."""
+        """Update a single Q-value using the TD(0) rule.
+
+        Real and imagined transitions both arrive here, which is why model
+        quality matters: a bad model writes directly into the same table as real
+        experience.
+        """
         # Terminal transitions should not bootstrap from future value estimates.
         target = r if done else r + self.gamma * np.max(self.Q[s_next])
         self.Q[s][a] += self.alpha * (

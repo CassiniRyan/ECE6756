@@ -1,4 +1,9 @@
 # Torch-based ensemble world model for RWM-Q planning.
+#
+# This file is the neural simulator used by RWM-Q and RWM-Predict. It predicts
+# one-step state deltas from a short history of continuous CartPole states and
+# actions. The wrapper in models/rwm_model/rwm_model.py decides how those
+# predictions are used for planning and action selection.
 import numpy as np
 import torch
 import torch.nn as nn
@@ -54,6 +59,7 @@ class _DynamicsMember(nn.Module):
         self.loss_fn = nn.SmoothL1Loss()
 
     def _encode_action(self, a):
+        """Convert integer actions into one-hot vectors for the network input."""
         a_long = a.long().view(-1)
         one_hot = torch.zeros(
             (a_long.shape[0], self.num_actions), dtype=torch.float32, device=self.device
@@ -70,6 +76,7 @@ class _DynamicsMember(nn.Module):
         return torch.cat([x, x_dot, torch.sin(theta), torch.cos(theta), th_dot], dim=-1)
 
     def forward(self, state_seq, action_seq):
+        """Run the network on a flattened state/action history."""
         batch_size, horizon, _ = state_seq.shape
         state_flat = state_seq.reshape(batch_size * horizon, -1)
         action_flat = action_seq.reshape(batch_size * horizon)
@@ -87,12 +94,16 @@ class _DynamicsMember(nn.Module):
         with torch.no_grad():
             out = self.forward(s, a).squeeze(0)
         delta = (out[:4] * self.delta_scale).detach().cpu().numpy()
+        # CartPole directly integrates position and angle from their velocities.
+        # Hard-coding those two easy dimensions makes the network spend capacity
+        # on the harder acceleration terms.
         delta[0] = self.tau * float(state_seq[-1][1])
         delta[2] = self.tau * float(state_seq[-1][3])
         reward = float(out[4])
         return delta, reward
 
     def train_batch(self, batch):
+        """Train one ensemble member on bootstrapped replay data."""
         self.train()
         state_seq, action_seq, delta, reward = batch
 
@@ -110,6 +121,8 @@ class _DynamicsMember(nn.Module):
         pred_velocity_delta_scaled = out[:, [1, 3]]
         pred_reward = out[:, 4:5]
 
+        # We train only velocity deltas plus reward. x and theta deltas are
+        # supplied analytically in predict(), which improved the debug scatter.
         loss = (
             self.loss_fn(pred_velocity_delta_scaled, delta_t_scaled[:, [1, 3]])
             + 0.05 * self.loss_fn(pred_reward, reward_t)
@@ -127,7 +140,11 @@ class _DynamicsMember(nn.Module):
 
 
 class WorldModel:
-    """Two-member ensemble — minimum needed for disagreement-based filtering."""
+    """Two-member ensemble used for disagreement-based filtering.
+
+    The mean prediction drives imagined transitions. The standard deviation
+    across members tells RWM when a prediction is too uncertain to trust.
+    """
 
     def __init__(
         self,
@@ -153,6 +170,7 @@ class WorldModel:
         ]
 
     def train_batch(self, batch):
+        """Train each ensemble member on a bootstrapped view of the same batch."""
         state_seq, action_seq, delta, reward = batch
         n = len(state_seq)
         losses = []
@@ -164,12 +182,14 @@ class WorldModel:
         return float(np.mean(losses))
 
     def predict_all(self, state_seq, action_seq):
+        """Return every ensemble member's prediction for uncertainty checks."""
         preds   = [m.predict(state_seq, action_seq) for m in self.members]
         deltas  = np.array([p[0] for p in preds], dtype=np.float32)
         rewards = np.array([p[1] for p in preds], dtype=np.float32)
         return deltas, rewards
 
     def predict_with_uncertainty(self, state_seq, action_seq):
+        """Return mean prediction and scalar disagreement summary."""
         deltas, rewards = self.predict_all(state_seq, action_seq)
         return (
             np.mean(deltas, axis=0),
@@ -179,6 +199,7 @@ class WorldModel:
         )
 
     def predict_with_uncertainty_by_dim(self, state_seq, action_seq):
+        """Return mean prediction plus per-dimension delta uncertainty."""
         deltas, rewards = self.predict_all(state_seq, action_seq)
         delta_std = np.std(deltas, axis=0)
         return (
@@ -198,8 +219,10 @@ class WorldModel:
             m.reset_optimizer()
 
     def export_state(self):
+        """Export member weights so RWM can keep a best-model snapshot."""
         return [m.state_dict() for m in self.members]
 
     def load_exported_state(self, states):
+        """Restore member weights from a previously exported snapshot."""
         for m, s in zip(self.members, states):
             m.load_state_dict(s)

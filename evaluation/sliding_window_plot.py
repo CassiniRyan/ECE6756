@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Plot sliding-window average reward curves from JSON training logs.
+"""Plot sliding-window reward summaries from JSON training logs.
+
+The training loop stores raw episode rewards in logs/<algo>.json. This script
+turns those noisy rewards into report-friendly views: sliding average, upper
+envelope, and lower envelope. The dim raw trace remains in the background so
+instability is still visible without hiding the trend line.
 
 Examples:
     python evaluation/sliding_window_plot.py --log-dir logs
@@ -41,7 +46,11 @@ FALLBACK_COLORS = [
 
 
 def sliding_average(values, window):
-    """Return a valid-mode sliding average and matching episode numbers."""
+    """Return a valid-mode sliding average and matching episode numbers.
+
+    Valid-mode averaging starts once a full window exists, so each plotted point
+    represents the same number of episodes.
+    """
     rewards = np.array(values, dtype=np.float32)
     if rewards.size == 0:
         return np.array([], dtype=np.float32), np.array([], dtype=np.int64)
@@ -59,7 +68,11 @@ def sliding_average(values, window):
 
 
 def sliding_envelope(values, window, mode):
-    """Return a sliding upper/lower envelope and matching episode numbers."""
+    """Return a sliding upper/lower envelope and matching episode numbers.
+
+    The upper envelope shows best recent capability; the lower envelope shows
+    worst recent stability. Together they make variance easier to discuss.
+    """
     rewards = np.array(values, dtype=np.float32)
     if rewards.size == 0:
         return np.array([], dtype=np.float32), np.array([], dtype=np.int64)
@@ -79,6 +92,7 @@ def sliding_envelope(values, window, mode):
 
 
 def load_rewards(path):
+    """Load the reward list written by Agent._flush_log."""
     with open(path, "r") as f:
         data = json.load(f)
     rewards = data.get("rewards", [])
@@ -122,6 +136,7 @@ def output_paths(base_output):
 
 
 def plot_reward_summary(logs, window, output, mode):
+    """Draw raw rewards faintly and the requested sliding summary prominently."""
     fig, ax = plt.subplots(figsize=(12, 6))
     plotted = 0
 
@@ -182,7 +197,11 @@ def plot_reward_summary(logs, window, output, mode):
 
 
 def writable_output_path(output):
-    """Return output, or a logs/plots fallback if the requested path is not writable."""
+    """Return output, or a fallback if the requested path is not writable.
+
+    Cluster and notebook environments sometimes mount the repo read-only. The
+    fallback keeps evaluation usable without changing the reward data.
+    """
     output_dir = os.path.dirname(os.path.abspath(output))
     try:
         if output_dir:

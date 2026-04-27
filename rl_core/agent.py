@@ -1,11 +1,21 @@
 
 # Agent logic connecting the environment, the policy, and any planning model.
+#
+# The Agent is deliberately small: it owns the real environment loop and the
+# Q-table, while each model object decides how and when it should be trusted for
+# planning. This separation is what lets Q-learning, tabular Dyna-Q, linear
+# Dyna-Q, RWM-Q, and RWM-Predict share the same training loop.
 from rl_core.discretizer import Discretizer
 from rl_core.q_learning import QLearning
 import random
 
 class Agent:
-    """Agent wrapper for training, saving, loading, and policy evaluation."""
+    """Agent wrapper for training, saving, loading, and policy evaluation.
+
+    The important design point is that every real environment step updates the
+    Q-table first. Model-based planning is extra signal layered on top, so if a
+    model is not ready or rejects a sample, the baseline learner still moves.
+    """
 
     def __init__(self, env, model=None, planning_steps=0, bins_per_dim=10, log_name=None):
         self.env = env
@@ -47,6 +57,9 @@ class Agent:
                     and self.model.ready()
                 ):
                     try:
+                        # RWM-Predict can veto a Q action when its multi-step
+                        # stability rollout predicts a clearly safer action.
+                        # Other models do not implement this hook.
                         a = self.model.select_action(obs, a, self.q, self.disc)
                     except Exception:
                         pass
@@ -54,7 +67,9 @@ class Agent:
                 done = term or trunc
                 s_next = self.disc.discretize(obs_next)
 
-                # Always update the Q-table from the real transition.
+                # Always update the Q-table from the real transition. This is
+                # the anchor that keeps model errors from becoming the only
+                # learning signal.
                 self.q.update(s, a, r, s_next, done=done)
 
                 # Store the real transition in the model if available.
@@ -67,6 +82,8 @@ class Agent:
                         self.model.store(s, a, s_next, r, done)
 
                 # Optionally perform additional model-based planning updates.
+                # planning_ratio can be fractional, so planning_budget lets a
+                # cautious schedule accumulate into occasional concrete updates.
                 ratio = self.planning_ratio(self.global_step)
                 if self.model is not None and ratio > 0.0 and self.model.ready():
                     # Fractional planning budgets let gentle schedules still add up
@@ -78,6 +95,9 @@ class Agent:
                         for _ in range(model_updates):
                             try:
                                 if hasattr(self.model, "apply_planning_update"):
+                                    # RWM-Predict directly writes an n-step
+                                    # imagined target into the Q-table. Older
+                                    # models return a single fake transition.
                                     self.model.apply_planning_update(self.q, self.disc)
                                 else:
                                     sample = self.model.sample()
@@ -152,16 +172,21 @@ class Agent:
             self.q.decay()
 
             if self.log_name:
+                # Save reward progress every episode so an interrupted long
+                # training run still leaves a usable partial curve.
                 self._flush_log(rewards, ep + 1, copy_debug=False)
 
             if ep % 100 == 0:
                 print(f"Ep {ep} Reward {total} Epsilon {self.q.epsilon:.3f}")
 
         if self.log_name:
+            # Copy the large debug log only at the end. Copying it every episode
+            # was a real slowdown once RWM logs grew large.
             self._flush_log(rewards, len(rewards), copy_debug=True)
         return rewards
 
     def _flush_log(self, rewards, ep, copy_debug=False):
+        """Write reward logs, and optionally archive the RWM diagnostic log."""
         import json, os, shutil
         os.makedirs("logs", exist_ok=True)
         with open(f"logs/{self.log_name}.json", "w") as f:

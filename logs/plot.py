@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Plot training curves from JSON logs.
 
+This is the older plotting helper kept beside the logs. The final evaluation
+script in evaluation/sliding_window_plot.py is more explicit, but this file is
+still useful for quick local comparisons from the logs directory.
+
 Usage:
     python logs/plot.py                         # plot all available logs
     python logs/plot.py q dyna-q-linear         # plot specific algorithms
@@ -24,12 +28,14 @@ COLORS = ["green", "blue", "orange", "red", "purple", "brown"]
 
 
 def moving_avg(x, window=50):
+    """Smooth a reward list with a simple moving average."""
     if len(x) < window:
         return np.array(x)
     return np.convolve(x, np.ones(window) / window, mode="valid")
 
 
 def load_rewards(path):
+    """Read the rewards list written by Agent._flush_log."""
     with open(path, "r") as f:
         data = json.load(f)
     return data.get("rewards", [])
@@ -62,7 +68,8 @@ def main():
         print("No JSON logs found in logs/")
         sys.exit(1)
 
-    # Per-algorithm individual plots
+    # Per-algorithm individual plots. Raw rewards stay faint in the background
+    # so the smoothed trend is readable without hiding instability.
     for i, (name, path) in enumerate(logs):
         rewards = load_rewards(path)
         if not rewards:
@@ -84,7 +91,7 @@ def main():
         plt.close(fig)
         print(f"Saved → {individual_path}")
 
-    # Combined comparison plot
+    # Combined comparison plot for a quick side-by-side report figure.
     if len(logs) > 1:
         fig, ax = plt.subplots(figsize=(12, 5))
         for i, (name, path) in enumerate(logs):

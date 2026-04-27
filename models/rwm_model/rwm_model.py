@@ -1,4 +1,12 @@
 # Reactive world model wrapper that stores real transitions and generates synthetic samples.
+#
+# Why this exists:
+# CartPole's raw reward is almost always 1 until failure, so simply predicting
+# one-step reward does not add much learning signal. The final RWM design uses a
+# neural dynamics model plus a dense stability reward to answer a better control
+# question: "will this action keep the pole and cart stable over the next few
+# steps?" That signal is then used for model-based planning and, in
+# RWMPredictModel, for action vetoes.
 import copy
 import os
 import random
@@ -51,8 +59,13 @@ class RWMModel:
         freeze_patience=None,
         max_train_ratio=1.0,
     ):
+        # self.model is the live neural simulator. best_model is a snapshot used
+        # if optional rollback/freezing is enabled; by default the live model
+        # keeps adapting because the policy changes the data distribution.
         self.model = model
         self.best_model = copy.deepcopy(model)
+        # These flags tell Agent that this model consumes and returns continuous
+        # CartPole observations; Agent discretizes them only when updating Q.
         self.store_continuous = True
         self.returns_continuous = True
         self.buffer = []
@@ -161,13 +174,23 @@ class RWMModel:
         return float(np.clip(r_pred, lo, hi))
 
     def _planning_reward_for_next_state(self, r_pred, s_next, done):
-        """Reward used by imagined planning transitions."""
+        """Reward used by imagined planning transitions.
+
+        The final experiments use shaped stability reward because it gives the
+        model a dense signal about whether a predicted state is getting safer or
+        worse. The raw neural reward head is still available for ablations.
+        """
         if self.use_shaped_reward:
             return self._stability_reward(s_next, done)
         return self._format_planning_reward(r_pred)
 
     def _stability_reward(self, s_next, done):
-        """Dense CartPole stability reward used only by the world-model planner."""
+        """Dense CartPole stability reward used only by the world-model planner.
+
+        This does not replace the real environment reward in the main Q update.
+        It only helps imagined updates and lookahead distinguish "still alive
+        but drifting toward failure" from "alive and centered/stable."
+        """
         if done:
             return 0.0
         x, x_dot, theta, theta_dot = np.array(s_next, dtype=np.float32)
@@ -266,7 +289,10 @@ class RWMModel:
         # Compute delta (change in state)
         delta = s_next - s
 
-        # Store in buffer
+        # Store the target that the simulator should predict. When shaped reward
+        # is enabled, dynamics are still learned from real transitions but the
+        # reward head learns the dense stability potential instead of the mostly
+        # flat CartPole reward.
         model_reward = self._stability_reward(s_next, done) if self.use_shaped_reward else float(r)
         self.buffer.append((s, int(a), delta, float(model_reward), float(done)))
         if len(self.buffer) > self.max_samples:
@@ -281,7 +307,9 @@ class RWMModel:
             and train_ratio < self.max_train_ratio
             and self.store_steps % self.train_every == 0
         ):
-            # Update the neural model online from small replay batches.
+            # Update the neural model online from small replay batches. Small,
+            # frequent updates let the simulator follow the current policy's
+            # state distribution without pausing training for a large offline fit.
             for _ in range(self.retrain_batches):
                 batch = self._sample_training_batch()
                 loss = self.model.train_batch(batch)
@@ -336,7 +364,8 @@ class RWMModel:
             raise Exception("World model not ready")
 
         # MBPO/PETS-style branching: always start from a real replay state and
-        # reject imagined samples when ensemble members disagree too much.
+        # reject imagined samples when ensemble members disagree too much. This
+        # is why RWM-Q can help without letting model error freely compound.
         self._sc_total += 1
         last_mean_dis = last_vel_dis = float("nan")
         last_bin_ok = True
@@ -459,6 +488,7 @@ class RWMModel:
         return np.array(states, dtype=np.float32), np.array(actions, dtype=np.int64)
 
     def _diagnostics_ready(self):
+        """Gate planning on prediction quality, especially velocity dimensions."""
         if self.last_diag is None:
             self.last_diag = self.diagnostics()
         diag = self.last_diag
@@ -473,6 +503,7 @@ class RWMModel:
         )
 
     def _update_best_model(self):
+        """Maintain an optional best simulator snapshot based on diagnostics."""
         if self.last_diag is None:
             return
         if self.freeze_patience is None:
@@ -552,7 +583,13 @@ class RWMModel:
 
 
 class RWMPredictModel(RWMModel):
-    """Use the NN model to build multi-step bootstrapped targets and action vetoes."""
+    """Use the NN model to build multi-step bootstrapped targets and action vetoes.
+
+    RWM-Q uses imagined one-step transitions. RWM-Predict goes further: because
+    the final debug plots showed accurate five-step rollouts, it scores both
+    actions over a short predicted horizon and can veto a Q action that appears
+    clearly less stable.
+    """
 
     def __init__(
         self,
@@ -573,7 +610,12 @@ class RWMPredictModel(RWMModel):
         self._predict_update_count = 0
 
     def select_action(self, obs, q_action, q, discretizer):
-        """Override a Q action when model lookahead predicts a clearly safer choice."""
+        """Override a Q action when model lookahead predicts a clearly safer choice.
+
+        This is the final "decision use" of the simulator: the Q-table proposes
+        an action, then the model asks whether the other action has a higher
+        multi-step stability potential by at least decision_margin.
+        """
         if not self.ready():
             return q_action
 
@@ -615,7 +657,12 @@ class RWMPredictModel(RWMModel):
         return q_action
 
     def apply_planning_update(self, q, discretizer):
-        """Apply one imagined n-step return update directly to the Q-table."""
+        """Apply one imagined n-step return update directly to the Q-table.
+
+        Unlike sample(), this method does not return a fake one-step transition.
+        It evaluates a short rollout and writes the resulting n-step target into
+        the Q-table, which is the part that uses accurate multi-step prediction.
+        """
         if not self.ready():
             raise Exception("World model not ready")
 
@@ -625,6 +672,9 @@ class RWMPredictModel(RWMModel):
         actions = range(self.model.num_actions) if self.update_all_actions else [int(a0)]
 
         for first_action in actions:
+            # Updating both first actions from the same replay state lets the
+            # model provide counterfactual information: what would have happened
+            # if the agent had pushed the other way?
             target = self._rollout_target(
                 q,
                 discretizer,
@@ -649,7 +699,12 @@ class RWMPredictModel(RWMModel):
             )
 
     def _rollout_target(self, q, discretizer, state_history, action_history, s0, first_action):
-        """Estimate an n-step return for one candidate first action."""
+        """Estimate an n-step return for one candidate first action.
+
+        The rollout follows the candidate first action, then switches to greedy
+        Q actions. The final bootstrap keeps the target compatible with ordinary
+        Q-learning while the shaped rewards guide the short predicted horizon.
+        """
         state_history = np.array(state_history, dtype=np.float32, copy=True)
         action_history = np.array(action_history, dtype=np.int64, copy=True)
         s_roll = np.array(s0, dtype=np.float32)
@@ -712,7 +767,12 @@ class RWMPredictModel(RWMModel):
         return total_return
 
     def _rollout_potential(self, state_history, action_history, s0, first_action, q, discretizer):
-        """Score a candidate action by predicted stability over the rollout horizon."""
+        """Score a candidate action by predicted stability over the rollout horizon.
+
+        This is lighter than a full Q target: it is used only to compare actions
+        at decision time. A small Q-value term breaks ties in favor of what the
+        learned policy already believes is useful.
+        """
         state_history = np.array(state_history, dtype=np.float32, copy=True)
         action_history = np.array(action_history, dtype=np.int64, copy=True)
         s_roll = np.array(s0, dtype=np.float32)

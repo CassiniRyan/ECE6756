@@ -1,4 +1,9 @@
-"""Shared paths and CSV schema for the linear world model diagnostics."""
+"""Shared paths and CSV schema for the linear world model diagnostics.
+
+The linear model writes a small CSV instead of a long debug log. Keeping the
+schema here makes the metrics consistent between the model and any analysis
+script that wants to read them.
+"""
 import os
 
 import numpy as np

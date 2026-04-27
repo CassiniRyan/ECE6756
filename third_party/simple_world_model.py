@@ -1,4 +1,8 @@
 # Simple neural world model for predicting state deltas and reward.
+#
+# This is retained as a lightweight reference model from earlier experiments.
+# The final RWM path uses world_model_torch.py instead, but keeping this file
+# documented makes it clear that it is not the main final simulator.
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -67,7 +71,12 @@ class SimpleWorldModel(nn.Module):
         return loss.item()
 
     def train_batch(self, batch_data):
-        """Train on a batch of transitions."""
+        """Train on a batch of transitions.
+
+        The API mirrors the final world model enough that older experiments can
+        still call it, but it lacks the ensemble and history features that made
+        the final simulator reliable.
+        """
         self.train()
         
         s_b, a_b, delta_b, r_b = batch_data

@@ -1,9 +1,17 @@
 # Tabular model that stores recent transitions for Dyna-style planning.
+#
+# This is the classic Dyna-Q baseline: no neural network, no fitted equations.
+# It simply memorizes what happened for each discrete (state, action) and
+# replays those transitions as extra Q-learning updates.
 import random
 from collections import defaultdict
 
 class TabularModel:
-    """Simple memory-based model of environment transitions."""
+    """Simple memory-based model of environment transitions.
+
+    Because the state is already discretized before storage, this model evaluates
+    whether replaying exact visited bins is enough to improve data efficiency.
+    """
     def __init__(self, max_per_state=8):
         # (s, a) -> list of (s_next, r, done)
         self.memory = defaultdict(list)
@@ -20,7 +28,11 @@ class TabularModel:
             self.memory[(s, a)].pop(0)
 
     def sample(self):
-        """Sample an experience tuple from the stored transition memory."""
+        """Sample an experience tuple from the stored transition memory.
+
+        Planning here means "practice on something we already saw", not predict
+        new physics. That makes it stable but less able to generalize.
+        """
         # Sample from previously observed transitions rather than predicting.
         valid_keys = [k for k in self.memory.keys() if len(self.memory[k]) > 0]
 

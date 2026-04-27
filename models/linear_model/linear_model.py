@@ -1,3 +1,10 @@
+"""Linear Dyna-Q world model.
+
+This baseline asks whether a simple fitted dynamics model is enough. It stores
+continuous CartPole transitions, fits ridge-regression predictors for state
+deltas and reward, and then returns imagined transitions for Q-learning after
+basic validation checks pass.
+"""
 import csv
 import os
 import random
@@ -29,6 +36,8 @@ class LinearModel:
         mse_threshold=0.03,
         pred_err_threshold=0.25,
     ):
+        # Hyperparameters are intentionally conservative. The linear model is a
+        # baseline, so it should plan only when the validation error is small.
         self.state_dim = state_dim
         self.action_space = action_space
         self.max_samples = max_samples
@@ -38,6 +47,8 @@ class LinearModel:
         self.mse_threshold = float(mse_threshold)
         self.pred_err_threshold = float(pred_err_threshold)
         self._last_pred_err = None
+        # Agent should pass raw observations in and discretize imagined samples
+        # only after the model predicts the next continuous state.
         self.store_continuous = True
         self.returns_continuous = True
         self.device = self._select_device()
@@ -55,6 +66,7 @@ class LinearModel:
 
         self._plan_count = 0
 
+        # The CSV gives a compact trace of model quality for the final report.
         os.makedirs(LOG_DIR, exist_ok=True)
         self._csv_file = open(CSV_PATH, "w", newline="")
         self._csv_writer = csv.DictWriter(self._csv_file, fieldnames=CSV_FIELDS)
@@ -68,6 +80,7 @@ class LinearModel:
         return "cuda" if torch.cuda.is_available() else "cpu"
 
     def _clip_obs(self, s):
+        """Clamp states to the range where the linear approximation is intended."""
         return np.clip(np.array(s, dtype=np.float32), self.obs_low, self.obs_high)
 
     def _features(self, s, a):
@@ -79,6 +92,7 @@ class LinearModel:
         return np.concatenate([s_arr, action_one_hot, np.array([1.0], dtype=np.float32)])
 
     def _fit(self):
+        """Refit delta and reward predictors from the current replay buffer."""
         n = len(self.buffer)
         if n < self.min_samples:
             return
@@ -188,12 +202,18 @@ class LinearModel:
             delta_pred = (x @ self.delta_weights) * self.obs_scale
             r_pred = float(np.clip(x @ self.reward_weights, 0.0, 1.0))
 
+        # Clip the prediction before Agent discretizes it; otherwise a single
+        # bad linear extrapolation could update an unrealistic Q-table bin.
         s_next_pred = self._clip_obs(s + delta_pred)
 
         return tuple(float(v) for v in s), a, tuple(float(v) for v in s_next_pred), r_pred, done
 
     def planning_ratio(self, step):
-        """Ramp in planning conservatively, gate on prediction quality."""
+        """Ramp in planning conservatively, gate on prediction quality.
+
+        This prevents early inaccurate linear predictions from dominating the
+        real Q-learning signal before the model has enough data.
+        """
         if step < 2000:
             return 0.0
         if self.last_mse is not None and self.last_mse > self.mse_threshold:
@@ -205,7 +225,12 @@ class LinearModel:
         return 0.3
 
     def diagnostics(self, sample_size=128):
-        """Compute prediction quality on buffer samples and write a CSV row."""
+        """Compute prediction quality on buffer samples and write a CSV row.
+
+        The CSV is the linear-model counterpart to the RWM debug log: it records
+        whether the fitted model is good enough for planning and how prediction
+        error changes over time.
+        """
         if len(self.buffer) < max(32, sample_size) or self.delta_weights is None:
             return None
 

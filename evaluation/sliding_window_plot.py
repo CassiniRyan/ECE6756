@@ -175,12 +175,37 @@ def plot_reward_summary(logs, window, output, mode):
     ax.legend()
     fig.tight_layout()
 
-    output_dir = os.path.dirname(os.path.abspath(output))
-    if output_dir:
-        os.makedirs(output_dir, exist_ok=True)
+    output = writable_output_path(output)
     fig.savefig(output, dpi=140)
     plt.close(fig)
     print(f"Saved -> {output}")
+
+
+def writable_output_path(output):
+    """Return output, or a logs/plots fallback if the requested path is not writable."""
+    output_dir = os.path.dirname(os.path.abspath(output))
+    try:
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+        probe_path = os.path.join(output_dir or ".", ".write_probe")
+        with open(probe_path, "w") as f:
+            f.write("")
+        os.remove(probe_path)
+        return output
+    except OSError as exc:
+        for fallback_dir in (os.path.join("logs", "plots"), "/tmp/ece6756_plots"):
+            try:
+                os.makedirs(fallback_dir, exist_ok=True)
+                fallback = os.path.join(fallback_dir, os.path.basename(output))
+                probe_path = os.path.join(fallback_dir, ".write_probe")
+                with open(probe_path, "w") as f:
+                    f.write("")
+                os.remove(probe_path)
+                print(f"Warning: cannot write {output} ({exc}); using {fallback}")
+                return fallback
+            except OSError:
+                continue
+        raise
 
 
 def parse_args():

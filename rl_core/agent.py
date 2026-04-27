@@ -152,21 +152,25 @@ class Agent:
             self.q.decay()
 
             if self.log_name:
-                self._flush_log(rewards, ep + 1)
+                self._flush_log(rewards, ep + 1, copy_debug=False)
 
             if ep % 100 == 0:
                 print(f"Ep {ep} Reward {total} Epsilon {self.q.epsilon:.3f}")
 
         if self.log_name:
-            self._flush_log(rewards, len(rewards))
+            self._flush_log(rewards, len(rewards), copy_debug=True)
         return rewards
 
-    def _flush_log(self, rewards, ep):
+    def _flush_log(self, rewards, ep, copy_debug=False):
         import json, os, shutil
         os.makedirs("logs", exist_ok=True)
         with open(f"logs/{self.log_name}.json", "w") as f:
             json.dump({"algo": self.log_name, "episodes": ep, "rewards": rewards}, f)
-        if self.log_name in ("rwm-q", "rwm-predict") and os.path.exists("debug/rwm_debug.log"):
+        if (
+            copy_debug
+            and self.log_name in ("rwm-q", "rwm-predict")
+            and os.path.exists("debug/rwm_debug.log")
+        ):
             os.makedirs("logs/debug", exist_ok=True)
             shutil.copy2("debug/rwm_debug.log", f"logs/debug/{self.log_name}_rwm_debug.log")
 

@@ -559,9 +559,8 @@ class RWMPredictModel(RWMModel):
         model,
         rollout_horizon=5,
         update_all_actions=True,
-        decision_margin=0.35,
+        decision_margin=0.15,
         decision_q_weight=0.02,
-        decision_every=4,
         **kwargs,
     ):
         kwargs.setdefault("random_action_prob", 0.0)
@@ -571,17 +570,11 @@ class RWMPredictModel(RWMModel):
         self.update_all_actions = bool(update_all_actions)
         self.decision_margin = float(decision_margin)
         self.decision_q_weight = float(decision_q_weight)
-        self.decision_every = max(1, int(decision_every))
         self._predict_update_count = 0
-        self._decision_calls = 0
 
     def select_action(self, obs, q_action, q, discretizer):
         """Override a Q action when model lookahead predicts a clearly safer choice."""
         if not self.ready():
-            return q_action
-
-        self._decision_calls += 1
-        if not self._should_check_decision(obs):
             return q_action
 
         state_history, action_history = self._current_state_history(obs, previous_action=q_action)
@@ -620,17 +613,6 @@ class RWMPredictModel(RWMModel):
             return best_action
 
         return q_action
-
-    def _should_check_decision(self, obs):
-        """Run expensive decision lookahead only periodically or near risky states."""
-        x, x_dot, theta, theta_dot = np.array(obs, dtype=np.float32)
-        risky = (
-            abs(float(theta)) > 0.07
-            or abs(float(x)) > 1.0
-            or abs(float(theta_dot)) > 1.2
-            or abs(float(x_dot)) > 1.5
-        )
-        return risky or self._decision_calls % self.decision_every == 0
 
     def apply_planning_update(self, q, discretizer):
         """Apply one imagined n-step return update directly to the Q-table."""
